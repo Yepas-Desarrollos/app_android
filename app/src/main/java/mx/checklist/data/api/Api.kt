@@ -1,42 +1,41 @@
 package mx.checklist.data.api
 
-// Importaciones explícitas para DTOs usados en las firmas de los métodos
+import mx.checklist.data.api.dto.CreateRunReq
 import mx.checklist.data.api.dto.LoginReq
-import mx.checklist.data.api.dto.LoginRes
+import mx.checklist.data.api.dto.RespondReq
+import mx.checklist.data.api.dto.RunItemDto
+import mx.checklist.data.api.dto.RunRes
 import mx.checklist.data.api.dto.StoreDto
 import mx.checklist.data.api.dto.TemplateDto
-import mx.checklist.data.api.dto.CreateRunReq
-import mx.checklist.data.api.dto.RunRes
-import mx.checklist.data.api.dto.RunItemDto
-import mx.checklist.data.api.dto.RespondReq
-
-import retrofit2.http.*
+import mx.checklist.data.api.dto.TokenRes
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.Path
 
 interface Api {
     @POST("auth/login")
-    suspend fun login(@Body body: LoginReq): LoginRes
+    suspend fun login(@Body body: LoginReq): TokenRes
 
     @GET("stores")
-    @Authenticated
-    suspend fun getStores(): List<StoreDto>
+    suspend fun stores(): List<StoreDto>
 
     @GET("templates")
-    @Authenticated
-    suspend fun getTemplates(): List<TemplateDto>
+    suspend fun templates(): List<TemplateDto>
 
     @POST("runs")
-    @Authenticated
     suspend fun createRun(@Body body: CreateRunReq): RunRes
 
     @GET("runs/{id}/items")
-    @Authenticated
-    suspend fun getRunItems(@Path("id") runId: Long): List<RunItemDto>
+    suspend fun runItems(@Path("id") runId: Long): List<RunItemDto>
 
     @POST("items/{id}/respond")
-    @Authenticated
-    suspend fun respondItem(@Path("id") itemId: Long, @Body body: RespondReq): RunItemDto
+    suspend fun respond(
+        @Path("id") itemId: Long,
+        @Body body: RespondReq
+    ): RunItemDto
 
-    @POST("runs/{id}/submit")
-    @Authenticated
-    suspend fun submitRun(@Path("id") runId: Long): RunRes
+    @PATCH("runs/{id}/submit")
+    suspend fun submit(@Path("id") runId: Long): RunRes
 }

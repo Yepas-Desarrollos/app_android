@@ -6,18 +6,19 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore("auth_prefs")
+private val Context.dataStore by preferencesDataStore(name = "auth")
 
-class TokenStore(private val ctx: Context) {
-  private val KEY_TOKEN = stringPreferencesKey("token")
+class TokenStore(ctx: Context) {
+  private val store = ctx.dataStore
+  private val KEY = stringPreferencesKey("jwt")
 
-  val tokenFlow = ctx.dataStore.data.map { it[KEY_TOKEN] }
+  val tokenFlow = store.data.map { it[KEY] }
 
   suspend fun saveToken(token: String) {
-    ctx.dataStore.edit { it[KEY_TOKEN] = token }
+    store.edit { it[KEY] = token }
   }
 
   suspend fun clear() {
-    ctx.dataStore.edit { it.remove(KEY_TOKEN) }
+    store.edit { it.remove(KEY) }
   }
 }
