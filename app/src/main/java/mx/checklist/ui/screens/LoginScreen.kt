@@ -1,57 +1,65 @@
 package mx.checklist.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import mx.checklist.ui.navigation.NavRoutes
 import mx.checklist.ui.vm.AuthViewModel
 
 @Composable
 fun LoginScreen(
-    onLogged: () -> Unit,
-    vm: AuthViewModel = viewModel()
+    vm: AuthViewModel,
+    onLoggedIn: () -> Unit
 ) {
-    var email by remember { mutableStateOf("admin@yepas.local") }
-    var pass by remember { mutableStateOf("Demo123*") }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    val st by vm.state.collectAsState()
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Iniciar sesión", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo") }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = pass, onValueChange = { pass = it },
-            label = { Text("Contraseña") },
-            modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation()
-        )
-        Spacer(Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                loading = true; error = null
-                vm.login(email, pass, onSuccess = {
-                    loading = false; onLogged()
-                }, onError = {
-                    loading = false; error = it.message
-                })
-            },
-            enabled = !loading,
-            modifier = Modifier.fillMaxWidth()
+    Box(Modifier.fillMaxSize().padding(16.dp)) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(if (loading) "Entrando..." else "Entrar")
+            Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                enabled = !st.loading,
+                onClick = { vm.login(email, password, onLoggedIn) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Entrar")
+            }
+
+            st.error?.let {
+                Text("Error: $it", color = MaterialTheme.colorScheme.error)
+            }
         }
 
-        error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text("Error: $it", color = MaterialTheme.colorScheme.error)
+        if (st.loading) {
+            CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
     }
 }

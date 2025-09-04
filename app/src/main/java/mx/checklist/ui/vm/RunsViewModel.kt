@@ -3,58 +3,98 @@ package mx.checklist.ui.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import mx.checklist.data.api.dto.*
-import mx.checklist.data.repo.RunsRepository
+import mx.checklist.data.Repo
+import mx.checklist.data.api.dto.RunItemDto
+import mx.checklist.data.api.dto.StoreDto
+import mx.checklist.data.api.dto.TemplateDto
 
-class RunsViewModel : ViewModel() {
-    private val repo = RunsRepository()
+class RunsViewModel(private val repo: Repo) : ViewModel() {
+
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
 
     private val _stores = MutableStateFlow<List<StoreDto>>(emptyList())
-    val stores = _stores.asStateFlow()
-
     private val _templates = MutableStateFlow<List<TemplateDto>>(emptyList())
-    val templates = _templates.asStateFlow()
 
-    private val _items = MutableStateFlow<List<RunItemDto>>(emptyList())
-    val items = _items.asStateFlow()
+    private val _runItems = MutableStateFlow<List<RunItemDto>>(emptyList())
+    private val _runItemsLoadedFor = MutableStateFlow<Long?>(null)
 
-    fun loadStores() = viewModelScope.launch {
-        _stores.value = repo.getStores()
+    fun getStores(): StateFlow<List<StoreDto>> {
+        if (_stores.value.isEmpty()) {
+            viewModelScope.launch { safeLoad { _stores.value = repo.stores() } }
+        }
+        return _stores
     }
 
-    fun loadTemplates() = viewModelScope.launch {
-        _templates.value = repo.getTemplates()
+    fun getTemplates(): StateFlow<List<TemplateDto>> {
+        if (_templates.value.isEmpty()) {
+            viewModelScope.launch { safeLoad { _templates.value = repo.templates() } }
+        }
+        return _templates
     }
 
-    fun createRun(storeCode: String, templateId: Long, onCreated: (Long) -> Unit, onError: (Throwable) -> Unit) {
+    /** Flow estable para observar en la UI */
+    fun runItemsFlow(): StateFlow<List<RunItemDto>> = _runItems
+
+    /** Carga ítems SOLO si cambia el runId o no hay cache */
+    fun loadRunItems(runId: Long) {
+        if (_runItemsLoadedFor.value == runId && _runItems.value.isNotEmpty()) return
         viewModelScope.launch {
-            try {
-                val res = repo.createRun(storeCode, templateId)
-                onCreated(res.id)
-            } catch (t: Throwable) {
-                onError(t)
+            safeLoad {
+                _runItems.value = repo.runItems(runId)
+                _runItemsLoadedFor.value = runId
             }
         }
     }
 
-    fun loadRunItems(runId: Long) = viewModelScope.launch {
-        _items.value = repo.getRunItems(runId)
+    fun createRun(storeCode: String, templateId: Long, onCreated: (Long) -> Unit) {
+        viewModelScope.launch {
+            safeLoad {
+                val res = repo.createRun(storeCode, templateId)
+                onCreated(res.id)
+            }
+        }
     }
 
-    fun respond(itemId: Long, status: String) = viewModelScope.launch {
-        repo.respondItem(itemId, status)
-        // refrescar localmente
-        _items.value = _items.value.map { if (it.id == itemId) it.copy(responseStatus = status) else it }
+    fun respond(
+        itemId: Long,
+        status: String?,
+        text: String?,
+        number: Double?,
+        onUpdated: (RunItemDto) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            safeLoad {
+                val updated = repo.respond(itemId, status, text, number)
+                _runItems.value = _runItems.value.map { if (it.id == updated.id) updated else it }
+                onUpdated(updated)
+            }
+        }
     }
 
-    fun submit(runId: Long, onOk: () -> Unit, onError: (Throwable) -> Unit) = viewModelScope.launch {
+    fun submit(runId: Long, onSubmitted: () -> Unit) {
+        viewModelScope.launch {
+            safeLoad {
+                repo.submit(runId)
+                onSubmitted()
+            }
+        }
+    }
+
+    private suspend inline fun safeLoad(crossinline block: suspend () -> Unit) {
         try {
-            repo.submitRun(runId)
-            onOk()
+            _error.value = null
+            _loading.value = true
+            block()
         } catch (t: Throwable) {
-            onError(t)
+            _error.value = t.message ?: "Error inesperado"
+        } finally {
+            _loading.value = false
         }
     }
 }

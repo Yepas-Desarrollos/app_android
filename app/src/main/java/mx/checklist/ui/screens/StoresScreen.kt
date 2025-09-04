@@ -2,36 +2,68 @@ package mx.checklist.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import mx.checklist.ui.navigation.NavRoutes
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.ui.vm.RunsViewModel
 
 @Composable
 fun StoresScreen(
-    onStoreSelected: (String) -> Unit,
-    vm: RunsViewModel = viewModel()
+    vm: RunsViewModel,
+    onStoreSelected: (String) -> Unit
 ) {
-    val stores by vm.stores.collectAsState()
+    val storesFlow = vm.getStores()
+    val stores by storesFlow.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val error by vm.error.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { vm.loadStores() }
+    var query by remember { mutableStateOf(TextFieldValue("")) }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Tiendas", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(8.dp))
-        stores.forEach { s ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .clickable { onStoreSelected(s.code) }
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text("${s.code} - ${s.name}", style = MaterialTheme.typography.titleMedium)
-                    if (!s.isActive) Text("Inactiva", color = MaterialTheme.colorScheme.error)
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Tiendas", style = MaterialTheme.typography.headlineMedium)
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = { Text("Buscar por código o nombre") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (loading && stores.isEmpty()) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+
+        if (error != null) {
+            Text("Error: $error", color = MaterialTheme.colorScheme.error)
+        }
+
+        val filtered = remember(stores, query) {
+            val q = query.text.trim().lowercase()
+            if (q.isEmpty()) stores
+            else stores.filter {
+                it.code.lowercase().contains(q) || it.name.lowercase().contains(q)
+            }
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+            items(filtered) { s ->
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth()
+                        .then(if (s.isActive) Modifier.clickable { onStoreSelected(s.code) } else Modifier),
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("${s.code} — ${s.name}", style = MaterialTheme.typography.titleMedium)
+                        val statusTxt = if (s.isActive) "Activa" else "Inactiva"
+                        Text(statusTxt, color = if (s.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                        if (!s.isActive) {
+                            Text("No seleccionable (inactiva)", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
         }

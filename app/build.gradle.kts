@@ -18,7 +18,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Tu backend
-        buildConfigField("String", "BASE_URL", "\"http://TU_IP_LAN:3000/\"") // termina en /
+        buildConfigField("String", "BASE_URL", "\"http://172.16.16.22:3000/\"") // termina en /
 
     }
 
