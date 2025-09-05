@@ -14,6 +14,7 @@ import androidx.navigation.navArgument
 import mx.checklist.data.Repo
 import mx.checklist.data.TokenStore
 import mx.checklist.ui.Routes
+import mx.checklist.ui.screens.HomeScreen
 import mx.checklist.ui.screens.ItemsScreen
 import mx.checklist.ui.screens.LoginScreen
 import mx.checklist.ui.screens.RunScreen
@@ -27,7 +28,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Dependencias básicas
         val tokenStore = TokenStore(this)
         val repo = Repo(tokenStore = tokenStore)
 
@@ -35,7 +35,6 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 val nav = rememberNavController()
 
-                // ViewModels: SOLO 2 (AuthViewModel y RunsViewModel)
                 val authVM = androidx.lifecycle.viewmodel.compose.viewModel<AuthViewModel>(
                     factory = SimpleFactory { AuthViewModel(repo) }
                 )
@@ -43,71 +42,101 @@ class MainActivity : ComponentActivity() {
                     factory = SimpleFactory { RunsViewModel(repo) }
                 )
 
-                NavHost(
-                    navController = nav,
-                    startDestination = Routes.Login
-                ) {
-                    // LOGIN
+                // Iniciamos en Login; tras login vamos a Home
+                NavHost(navController = nav, startDestination = Routes.Login) {
+
+                    // LOGIN → HOME
                     composable(Routes.Login) {
-                        LoginScreen(vm = authVM) {
-                            nav.navigate(Routes.Stores) { popUpTo(0) }
-                        }
+                        LoginScreen(
+                            vm = authVM,
+                            onLoggedIn = { nav.navigate(Routes.Home) { popUpTo(0) } }
+                        )
+                    }
+
+                    // HOME
+                    composable(Routes.Home) {
+                        HomeScreen(
+                            onNuevaCorrida = { nav.navigate(Routes.Stores) },
+                            onVerTiendas = { nav.navigate(Routes.Stores) }
+                        )
                     }
 
                     // STORES
                     composable(Routes.Stores) {
-                        StoresScreen(vm = runsVM) { storeCode ->
-                            nav.navigate(Routes.template(storeCode))
-                        }
+                        StoresScreen(
+                            vm = runsVM,
+                            onStoreSelected = { storeCode ->
+                                nav.navigate(Routes.template(storeCode))
+                            }
+                        )
                     }
 
-                    // TEMPLATES
+                    // TEMPLATES (storeCode como path)
                     composable(
                         route = Routes.Templates,
                         arguments = listOf(
                             navArgument("storeCode") { type = NavType.StringType }
                         )
                     ) { backStack ->
-                        val storeCode = backStack.arguments?.getString("storeCode")!!
+                        val storeCode = requireNotNull(
+                            backStack.arguments?.getString("storeCode")
+                        ) { "storeCode es requerido" }
+
                         TemplatesScreen(
                             storeCode = storeCode,
-                            vm = runsVM
-                        ) { runId, sc ->
-                            nav.navigate(Routes.items(runId, sc))
-                        }
+                            vm = runsVM,
+                            onRunCreated = { runId, sc ->
+                                nav.navigate(Routes.items(runId, sc))
+                            }
+                        )
                     }
 
-                    // ITEMS (o detalle de la corrida)
+                    // ITEMS (runId path + storeCode query)
                     composable(
                         route = Routes.Items,
                         arguments = listOf(
                             navArgument("runId") { type = NavType.LongType },
-                            navArgument("storeCode") { type = NavType.StringType }
+                            navArgument("storeCode") {
+                                type = NavType.StringType
+                                nullable = true
+                            }
                         )
                     ) { backStack ->
-                        val runId = backStack.arguments?.getLong("runId")!!
-                        val storeCode = backStack.arguments?.getString("storeCode")!!
+                        val runId = requireNotNull(
+                            backStack.arguments?.getLong("runId")
+                        ) { "runId es requerido" }
+                        val storeCode = backStack.arguments?.getString("storeCode")
+                            ?: error("storeCode es requerido")
+
                         ItemsScreen(
                             runId = runId,
                             storeCode = storeCode,
-                            vm = runsVM
-                        ) {
-                            nav.navigate(Routes.Stores) { popUpTo(0) }
-                        }
+                            vm = runsVM,
+                            onSubmit = {
+                                // Tras enviar checklist, ir a HOME
+                                nav.navigate(Routes.Home) { popUpTo(0) }
+                            },
+                            readOnly = false // pon true si entras a un run SUBMITTED
+                        )
                     }
 
-                    // (Opcional) Si deseas navegar a la pantalla de envío final por ID:
+                    // (Opcional) detalle de corrida por ID directo
                     composable(
                         route = "run/{runId}",
-                        arguments = listOf(navArgument("runId") { type = NavType.LongType })
+                        arguments = listOf(
+                            navArgument("runId") { type = NavType.LongType }
+                        )
                     ) { backStack ->
-                        val runId = backStack.arguments?.getLong("runId")!!
+                        val runId = requireNotNull(backStack.arguments?.getLong("runId")) {
+                            "runId es requerido"
+                        }
                         RunScreen(
                             runId = runId,
-                            vm = runsVM
-                        ) {
-                            nav.navigate(Routes.Stores) { popUpTo(0) }
-                        }
+                            vm = runsVM,
+                            onSubmitted = {
+                                nav.navigate(Routes.Home) { popUpTo(0) }
+                            }
+                        )
                     }
                 }
             }
@@ -115,14 +144,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * Factory simple para VMs con constructor con dependencias.
- * Nota: sin genérico a nivel de clase para evitar el type mismatch
- * con el parámetro 'factory' de viewModel() en Compose.
- */
+/** Factory simple para VMs con dependencias */
 class SimpleFactory(private val creator: () -> ViewModel) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return creator() as T
-    }
+    override fun <T : ViewModel> create(modelClass: Class<T>): T = creator() as T
 }

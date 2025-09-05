@@ -1,9 +1,10 @@
 package mx.checklist.ui
 
 /**
- * API de rutas por constantes + helpers (lo simple).
+ * Rutas únicas de la app + helpers.
  */
 object Routes {
+    const val Home = "home"
     const val Login = "login"
     const val Stores = "stores"
     const val Templates = "templates/{storeCode}"
@@ -14,18 +15,14 @@ object Routes {
 }
 
 /**
- * API alternativa tipo sealed class con .route
- * (para compatibilidad con código viejo que usa Route.X.route).
+ * (Opcional) API alternativa tipo sealed class para compatibilidad.
  */
 sealed class Nav(val route: String) {
+    data object Home : Nav(Routes.Home)
     data object Login : Nav(Routes.Login)
     data object Stores : Nav(Routes.Stores)
     data object Templates : Nav(Routes.Templates)
     data object Items : Nav(Routes.Items)
 }
 
-/**
- * Alias opcional: si en algún sitio referías "Route.X",
- * podrás seguir usando "Route" como alias de "Routes".
- */
 typealias Route = Routes
