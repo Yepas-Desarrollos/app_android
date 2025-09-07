@@ -7,5 +7,7 @@ data class RunItemDto(
     val orderIndex: Int,
     val responseStatus: String? = null,
     val responseText: String? = null,
-    val responseNumber: Double? = null
+    val responseNumber: Double? = null,
+    // NUEVO: datos del ítem de plantilla (título, categoría…)
+    val itemTemplate: ItemTemplateDto? = null
 )

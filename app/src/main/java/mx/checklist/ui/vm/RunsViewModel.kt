@@ -6,9 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import mx.checklist.data.Repo
-import mx.checklist.data.api.dto.RunItemDto
-import mx.checklist.data.api.dto.StoreDto
-import mx.checklist.data.api.dto.TemplateDto
+import mx.checklist.data.api.dto.*
 
 class RunsViewModel(private val repo: Repo) : ViewModel() {
 
@@ -24,52 +22,64 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     private val _runItems = MutableStateFlow<List<RunItemDto>>(emptyList())
     private val _runItemsLoadedFor = MutableStateFlow<Long?>(null)
 
+    // Info run actual
+    private val _runInfo = MutableStateFlow<RunInfoDto?>(null)
+    fun runInfoFlow(): StateFlow<RunInfoDto?> = _runInfo
+
+    // Listas
+    private val _pendingRuns = MutableStateFlow<List<RunSummaryDto>>(emptyList())
+    fun pendingRunsFlow(): StateFlow<List<RunSummaryDto>> = _pendingRuns
+
+    private val _historyRuns = MutableStateFlow<List<RunSummaryDto>>(emptyList())
+    fun historyRunsFlow(): StateFlow<List<RunSummaryDto>> = _historyRuns
+
     fun getStores(): StateFlow<List<StoreDto>> {
-        if (_stores.value.isEmpty()) {
-            viewModelScope.launch { safeLoad { _stores.value = repo.stores() } }
-        }
+        if (_stores.value.isEmpty()) viewModelScope.launch { safe { _stores.value = repo.stores() } }
         return _stores
     }
 
     fun getTemplates(): StateFlow<List<TemplateDto>> {
-        if (_templates.value.isEmpty()) {
-            viewModelScope.launch { safeLoad { _templates.value = repo.templates() } }
-        }
+        if (_templates.value.isEmpty()) viewModelScope.launch { safe { _templates.value = repo.templates() } }
         return _templates
     }
 
-    /** Flow estable para observar en la UI */
+    fun loadPendingRuns(limit: Int? = 20, all: Boolean? = false, storeCode: String? = null) {
+        viewModelScope.launch { safe { _pendingRuns.value = repo.pendingRuns(limit, all, storeCode) } }
+    }
+
+    fun loadHistoryRuns(limit: Int? = 20, storeCode: String? = null) {
+        viewModelScope.launch { safe { _historyRuns.value = repo.historyRuns(limit, storeCode) } }
+    }
+
     fun runItemsFlow(): StateFlow<List<RunItemDto>> = _runItems
 
-    /** Carga ítems SOLO si cambia el runId o no hay cache */
     fun loadRunItems(runId: Long) {
         if (_runItemsLoadedFor.value == runId && _runItems.value.isNotEmpty()) return
         viewModelScope.launch {
-            safeLoad {
+            safe {
                 _runItems.value = repo.runItems(runId)
                 _runItemsLoadedFor.value = runId
             }
         }
     }
 
+    fun loadRunInfo(runId: Long) {
+        viewModelScope.launch { safe { _runInfo.value = repo.runInfo(runId) } }
+    }
+
     fun createRun(storeCode: String, templateId: Long, onCreated: (Long) -> Unit) {
         viewModelScope.launch {
-            safeLoad {
+            safe {
                 val res = repo.createRun(storeCode, templateId)
                 onCreated(res.id)
+                _pendingRuns.value = repo.pendingRuns()
             }
         }
     }
 
-    fun respond(
-        itemId: Long,
-        status: String?,
-        text: String?,
-        number: Double?,
-        onUpdated: (RunItemDto) -> Unit = {}
-    ) {
+    fun respond(itemId: Long, status: String?, text: String?, number: Double?, onUpdated: (RunItemDto) -> Unit = {}) {
         viewModelScope.launch {
-            safeLoad {
+            safe {
                 val updated = repo.respond(itemId, status, text, number)
                 _runItems.value = _runItems.value.map { if (it.id == updated.id) updated else it }
                 onUpdated(updated)
@@ -79,14 +89,26 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     fun submit(runId: Long, onSubmitted: () -> Unit) {
         viewModelScope.launch {
-            safeLoad {
+            safe {
                 repo.submit(runId)
                 onSubmitted()
+                _pendingRuns.value = repo.pendingRuns()
+                _historyRuns.value = repo.historyRuns()
             }
         }
     }
 
-    private suspend inline fun safeLoad(crossinline block: suspend () -> Unit) {
+    fun deleteRun(runId: Long, onDeleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            safe {
+                repo.deleteRun(runId)
+                _pendingRuns.value = repo.pendingRuns(all = true)
+                onDeleted()
+            }
+        }
+    }
+
+    private suspend inline fun safe(crossinline block: suspend () -> Unit) {
         try {
             _error.value = null
             _loading.value = true

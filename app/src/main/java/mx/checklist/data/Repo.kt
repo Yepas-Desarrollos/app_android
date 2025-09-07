@@ -15,7 +15,6 @@ class Repo(
     }
 
     suspend fun stores(): List<StoreDto> = api.stores()
-
     suspend fun templates(): List<TemplateDto> = api.templates()
 
     suspend fun createRun(storeCode: String, templateId: Long): RunRes =
@@ -23,37 +22,24 @@ class Repo(
 
     suspend fun runItems(runId: Long): List<RunItemDto> = api.runItems(runId)
 
-    /**
-     * Envía la respuesta de un ítem:
-     * - status: requerido
-     * - text: opcional
-     * - number: opcional (Double?)
-     */
-    suspend fun respond(
-        itemId: Long,
-        status: String?,
-        text: String?,
-        number: Double?
-    ): RunItemDto {
-        val s = requireNotNull(status?.trim()?.takeIf { it.isNotEmpty() }) {
-            "status requerido"
-        }
-
-        val t: String? = text?.trim()?.takeUnless { it.isEmpty() }
-
-        // Sanitiza NaN/Infinity → null, para no romper el JSON
-        val n: Double? = number?.let { d ->
-            if (d.isNaN() || d.isInfinite()) null else d
-        }
-
-        val body = RespondReq(
-            responseStatus = s,
-            responseText = t,
-            responseNumber = n
-        )
-
-        return api.respond(itemId, body)
+    suspend fun respond(itemId: Long, status: String?, text: String?, number: Double?): RunItemDto {
+        val s = requireNotNull(status?.trim()?.takeIf { it.isNotEmpty() }) { "status requerido" }
+        val t = text?.trim()?.takeUnless { it.isEmpty() }
+        val n = number?.let { d -> if (d.isNaN() || d.isInfinite()) null else d }
+        return api.respond(itemId, RespondReq(s, t, n))
     }
 
     suspend fun submit(runId: Long): RunRes = api.submit(runId)
+
+    // Info run
+    suspend fun runInfo(runId: Long): RunInfoDto = api.runInfo(runId)
+
+    // Borradores / Historial
+    suspend fun pendingRuns(limit: Int? = 20, all: Boolean? = false, storeCode: String? = null): List<RunSummaryDto> =
+        api.pendingRuns(limit, all, storeCode)
+
+    suspend fun historyRuns(limit: Int? = 20, storeCode: String? = null): List<RunSummaryDto> =
+        api.historyRuns(limit, storeCode)
+
+    suspend fun deleteRun(runId: Long) { api.deleteRun(runId) }
 }
