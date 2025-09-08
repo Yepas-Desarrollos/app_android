@@ -8,6 +8,8 @@ data class RunItemDto(
     val responseStatus: String? = null,
     val responseText: String? = null,
     val responseNumber: Double? = null,
-    // NUEVO: datos del ítem de plantilla (título, categoría…)
-    val itemTemplate: ItemTemplateDto? = null
+    val scannedBarcode: String? = null,
+    val respondedAt: String? = null,
+    val itemTemplate: ItemTemplateDto? = null,
+    val attachments: List<AttachmentDto>? = emptyList()
 )

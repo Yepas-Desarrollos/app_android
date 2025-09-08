@@ -3,6 +3,10 @@ package mx.checklist.data
 import mx.checklist.data.api.Api
 import mx.checklist.data.api.ApiClient
 import mx.checklist.data.api.dto.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import java.io.File
 
 class Repo(
     private val api: Api = ApiClient.api,
@@ -42,4 +46,14 @@ class Repo(
         api.historyRuns(limit, storeCode)
 
     suspend fun deleteRun(runId: Long) { api.deleteRun(runId) }
+
+    // === Evidencias ===
+    suspend fun uploadAttachments(itemId: Long, files: List<File>): List<AttachmentDto> {
+        val parts = files.map { file ->
+            val media = "image/*".toMediaTypeOrNull()
+            val body: RequestBody = RequestBody.create(media, file)
+            MultipartBody.Part.createFormData("files", file.name, body)
+        }
+        return api.uploadAttachments(itemId, parts)
+    }
 }

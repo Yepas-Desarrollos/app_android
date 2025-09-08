@@ -1,6 +1,7 @@
 package mx.checklist.data.api
 
 import mx.checklist.data.api.dto.*
+import okhttp3.MultipartBody
 import retrofit2.http.*
 
 interface Api {
@@ -47,4 +48,12 @@ interface Api {
     // Eliminar borrador
     @DELETE("runs/{id}")
     suspend fun deleteRun(@Path("id") runId: Long): Unit
+
+    // === Evidencias ===
+    @Multipart
+    @POST("items/{id}/attachments")
+    suspend fun uploadAttachments(
+        @Path("id") itemId: Long,
+        @Part files: List<MultipartBody.Part>
+    ): List<AttachmentDto>
 }

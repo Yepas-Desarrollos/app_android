@@ -21,8 +21,9 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     private val _runItems = MutableStateFlow<List<RunItemDto>>(emptyList())
     private val _runItemsLoadedFor = MutableStateFlow<Long?>(null)
+    fun runItemsFlow(): StateFlow<List<RunItemDto>> = _runItems
 
-    // Info run actual
+    // Info del run actual
     private val _runInfo = MutableStateFlow<RunInfoDto?>(null)
     fun runInfoFlow(): StateFlow<RunInfoDto?> = _runInfo
 
@@ -32,6 +33,8 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     private val _historyRuns = MutableStateFlow<List<RunSummaryDto>>(emptyList())
     fun historyRunsFlow(): StateFlow<List<RunSummaryDto>> = _historyRuns
+
+    fun clearError() { _error.value = null }
 
     fun getStores(): StateFlow<List<StoreDto>> {
         if (_stores.value.isEmpty()) viewModelScope.launch { safe { _stores.value = repo.stores() } }
@@ -50,8 +53,6 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     fun loadHistoryRuns(limit: Int? = 20, storeCode: String? = null) {
         viewModelScope.launch { safe { _historyRuns.value = repo.historyRuns(limit, storeCode) } }
     }
-
-    fun runItemsFlow(): StateFlow<List<RunItemDto>> = _runItems
 
     fun loadRunItems(runId: Long) {
         if (_runItemsLoadedFor.value == runId && _runItems.value.isNotEmpty()) return
@@ -87,6 +88,18 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         }
     }
 
+    fun uploadAttachments(itemId: Long, files: List<java.io.File>, onOk: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            safe {
+                repo.uploadAttachments(itemId, files)
+                // refrescar ítems para ver nuevas evidencias
+                val currentRun = _runItems.value.firstOrNull()?.runId
+                if (currentRun != null) _runItems.value = repo.runItems(currentRun)
+                onOk?.invoke()
+            }
+        }
+    }
+
     fun submit(runId: Long, onSubmitted: () -> Unit) {
         viewModelScope.launch {
             safe {
@@ -98,14 +111,50 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         }
     }
 
-    fun deleteRun(runId: Long, onDeleted: () -> Unit = {}) {
+    /** NUEVO: borrar una corrida (draft o histórica si tu backend lo permite) */
+    fun deleteRun(runId: Long, onOk: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe {
                 repo.deleteRun(runId)
-                _pendingRuns.value = repo.pendingRuns(all = true)
-                onDeleted()
+                // refrescar listas
+                _pendingRuns.value = repo.pendingRuns()
+                _historyRuns.value = repo.historyRuns()
+                onOk?.invoke()
             }
         }
+    }
+
+    /** Validación básica por tipo/config antes de enviar */
+    fun canSubmitAll(): Pair<Boolean, String?> {
+        val items = _runItems.value
+        for (it in items) {
+            val tpl = it.itemTemplate
+            val type = tpl?.expectedType?.uppercase() ?: "CHOICE"
+            val cfg = tpl?.config ?: emptyMap()
+            val attachments = it.attachments ?: emptyList()
+
+            fun cfgInt(key: String): Int? = (cfg[key] as? Number)?.toInt()
+            fun cfgBool(key: String): Boolean = (cfg[key] as? Boolean) == true
+
+            when (type) {
+                "CHOICE" -> {
+                    val s = it.responseStatus.orEmpty()
+                    if (s.isBlank()) return false to "Falta estatus en ítem #${it.orderIndex}"
+                    if (s.equals("FAIL", true) && cfgBool("requireFailPhoto")) {
+                        val min = cfgInt("minPhotosOnFail") ?: 1
+                        if (attachments.size < min) return false to "Ítem #${it.orderIndex}: requiere foto al marcar 'No cumple'"
+                    }
+                }
+                "PHOTO", "MULTIPHOTO" -> {
+                    val min = cfgInt("minPhotos") ?: 1
+                    if (attachments.size < min) return false to "Ítem #${it.orderIndex}: agrega al menos $min foto(s)"
+                }
+                "NUMERIC" -> {
+                    // Se podría validar rango si viene en config (min/max)
+                }
+            }
+        }
+        return true to null
     }
 
     private suspend inline fun safe(crossinline block: suspend () -> Unit) {
