@@ -7,7 +7,8 @@ package mx.checklist.data.api.dto
  * - responseNumber: opcional (Double?)
  */
 data class RespondReq(
-    val responseStatus: String,
+    val responseStatus: String, // "OK", "FAIL", "NA"
     val responseText: String? = null,
-    val responseNumber: Double? = null
+    val responseNumber: Int? = null,
+    val scannedBarcode: String? = null
 )

@@ -29,8 +29,9 @@ class Repo(
     suspend fun respond(itemId: Long, status: String?, text: String?, number: Double?): RunItemDto {
         val s = requireNotNull(status?.trim()?.takeIf { it.isNotEmpty() }) { "status requerido" }
         val t = text?.trim()?.takeUnless { it.isEmpty() }
-        val n = number?.let { d -> if (d.isNaN() || d.isInfinite()) null else d }
-        return api.respond(itemId, RespondReq(s, t, n))
+        // Convert the Double? to Int?
+        val nAsInt = number?.let { d -> if (d.isNaN() || d.isInfinite()) null else d.toInt() }
+        return api.respond(itemId, RespondReq(s, t, nAsInt)) // Pass the Int? version
     }
 
     suspend fun submit(runId: Long): RunRes = api.submit(runId)
@@ -55,5 +56,15 @@ class Repo(
             MultipartBody.Part.createFormData("files", file.name, body)
         }
         return api.uploadAttachments(itemId, parts)
+    }
+
+    // Added method
+    suspend fun listAttachments(itemId: Long): List<AttachmentDto> {
+        return api.listAttachments(itemId)
+    }
+
+    // Added method
+    suspend fun deleteAttachment(itemId: Long, attachmentId: Int): DeleteAttachmentRes {
+        return api.deleteAttachment(itemId, attachmentId)
     }
 }

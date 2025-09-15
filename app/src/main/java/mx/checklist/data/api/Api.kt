@@ -55,5 +55,14 @@ interface Api {
     suspend fun uploadAttachments(
         @Path("id") itemId: Long,
         @Part files: List<MultipartBody.Part>
-    ): List<AttachmentDto>
+    ): AttachmentsUploadResultDto // Changed to use the typealias
+
+    @POST("items/{id}/attachments/list")
+    suspend fun listAttachments(@Path("id") itemId: Long): List<AttachmentDto>
+
+    @POST("items/{itemId}/attachments/{attachmentId}/delete") // Adjusted path parameters
+    suspend fun deleteAttachment(
+        @Path("itemId") itemId: Long,
+        @Path("attachmentId") attachmentId: Int
+    ): DeleteAttachmentRes
 }
