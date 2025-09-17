@@ -1,7 +1,6 @@
 package mx.checklist.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Context
 import android.net.Uri
@@ -38,6 +37,27 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.RunItemDto
 import mx.checklist.ui.vm.RunsViewModel
 import java.io.File
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.core.content.FileProvider
+import coil.compose.rememberAsyncImagePainter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 @Composable
 fun ItemsScreen(
@@ -163,19 +183,40 @@ private fun ItemCard(
     val loading by vm.loading.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val pickMediaLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(),
-        onResult = { uris ->
-            if (uris.isNotEmpty()) {
-                val files = uris.mapNotNull { uri ->
-                    uriToFile(context, uri)
-                }
-                if (files.isNotEmpty()) {
-                    vm.uploadAttachments(item.id, files)
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                tempImageUri?.let { uri ->
+                    uriToFile(context, uri)?.let { file ->
+                        vm.uploadAttachments(item.id, listOf(file))
+                    }
                 }
             }
         }
     )
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission is granted. Continue the action
+            val newImageFile = createImageFile(context)
+            val newImageUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                newImageFile
+            )
+            tempImageUri = newImageUri
+            cameraLauncher.launch(newImageUri)
+        } else {
+            // Explain to the user that the feature is unavailable because the
+            // feature requires a permission that the user has denied.
+            // At this point, you can show a dialog or a snackbar.
+        }
+    }
 
     // Eliminar LaunchedEffect que llamaba a vm.loadAttachments
     // Considerar dónde/cómo clearEvidenceError debe ser llamado si es necesario por ítem.
@@ -200,6 +241,7 @@ private fun ItemCard(
     }
     // Actualizar photoEvidenceRequiredText para usar attachmentsForThisItem.size
     var photoEvidenceRequiredText by remember(item.id, evidenceConfig, status, attachmentsForThisItem.size) { mutableStateOf<String?>(null) }
+    var photosNeeded by remember { mutableStateOf(0) }
 
     LaunchedEffect(item.id, evidenceConfig, status, attachmentsForThisItem.size) {
         var required = false
@@ -231,15 +273,22 @@ private fun ItemCard(
                 photosActuallyNeeded = minCount
             }
 
+            photosNeeded = photosActuallyNeeded
+
             if (photosActuallyNeeded > 0) {
-                // Usar attachmentsForThisItem.size
-                photoEvidenceRequiredText = "Fotos: ${attachmentsForThisItem.size} / $photosActuallyNeeded requeridas."
+                val remaining = (photosActuallyNeeded - attachmentsForThisItem.size).coerceAtLeast(0)
+                if (remaining > 0) {
+                    photoEvidenceRequiredText = "Faltan $remaining fotos. (${attachmentsForThisItem.size} / $photosActuallyNeeded)"
+                } else {
+                    photoEvidenceRequiredText = "Fotos: ${attachmentsForThisItem.size} / $photosActuallyNeeded requeridas."
+                }
             } else {
                 // Usar attachmentsForThisItem.size
                 photoEvidenceRequiredText = if (itemExpectedType == "PHOTO" || itemExpectedType == "MULTIPHOTO") "Fotos: ${attachmentsForThisItem.size} (opcional)" else null
             }
         } else {
             photoEvidenceRequiredText = null
+            photosNeeded = 0
         }
     }
 
@@ -254,8 +303,8 @@ private fun ItemCard(
 
             photoEvidenceRequiredText?.let {
                 val currentMinCount = extractMinCount(evidenceConfig, status, item.itemTemplate?.expectedType)
-                // Usar attachmentsForThisItem.size
-                val isError = evidenceError != null || (currentMinCount > attachmentsForThisItem.size && currentMinCount > 0)
+                val photosAreMissing = currentMinCount > attachmentsForThisItem.size
+                val isError = evidenceError != null || (photosAreMissing && currentMinCount > 0)
                 Text(it, style = MaterialTheme.typography.bodySmall, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             evidenceError?.let {
@@ -264,28 +313,62 @@ private fun ItemCard(
 
             val shouldShowEvidenceSection = evidenceConfig != null || item.itemTemplate?.expectedType.equals("PHOTO", true) || item.itemTemplate?.expectedType.equals("MULTIPHOTO", true)
             if (shouldShowEvidenceSection) {
-                Column(modifier = Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Evidencia Fotográfica", style = MaterialTheme.typography.titleSmall)
-                    // Usar attachmentsForThisItem
-                    attachmentsForThisItem.forEach { att ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("- Foto ID: ${att.id} (${att.url})", style = MaterialTheme.typography.bodySmall)
-                            if (!readOnly) {
-                                TextButton(onClick = { vm.deleteAttachment(item.id, att.id) }) {
-                                    Text("Eliminar")
+
+                    if (attachmentsForThisItem.isEmpty()) {
+                        Text("(No hay fotos adjuntas)", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(attachmentsForThisItem) { att ->
+                                Box(modifier = Modifier.size(100.dp)) {
+                                    val imageUrl = "http://172.16.16.22:3000${att.url}"
+                                    Image(
+                                        painter = rememberAsyncImagePainter(imageUrl),
+                                        contentDescription = "Foto adjunta ${att.id}",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    if (!readOnly) {
+                                        IconButton(
+                                            onClick = { vm.deleteAttachment(item.id, att.id) },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .background(Color.Black.copy(alpha = 0.5f))
+                                                .size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Eliminar foto", tint = Color.White)
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    // Usar attachmentsForThisItem
-                    if (attachmentsForThisItem.isEmpty()) {
-                        Text("(No hay fotos adjuntas)", style = MaterialTheme.typography.bodySmall)
-                    }
+
                     if (!readOnly) {
                         Button(onClick = {
-                            pickMediaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            when (PackageManager.PERMISSION_GRANTED) {
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.CAMERA
+                                ) -> {
+                                    // You can use the API that requires the permission.
+                                    val newImageFile = createImageFile(context)
+                                    val newImageUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.provider",
+                                        newImageFile
+                                    )
+                                    tempImageUri = newImageUri
+                                    cameraLauncher.launch(newImageUri)
+                                }
+                                else -> {
+                                    // You can directly ask for the permission.
+                                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
+                            }
                         }) {
-                            Text("Agregar Foto(s)")
+                            Text("Tomar Foto")
                         }
                     }
                 }
@@ -296,19 +379,34 @@ private fun ItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("OK", "FAIL", "NA").forEach { opt ->
+                val statusOptions = mapOf(
+                    "OK" to "Realizado",
+                    "FAIL" to "No realizado",
+                    "NA" to "No aplica"
+                )
+                val statusColors = mapOf(
+                    "OK" to Color(0xFF4CAF50), // Verde
+                    "FAIL" to Color(0xFFF44336), // Rojo
+                    "NA" to Color(0xFF9E9E9E) // Gris
+                )
+
+                statusOptions.forEach { (value, label) ->
+                    val isSelected = status.equals(value, ignoreCase = true)
                     FilterChip(
-                        selected = status.equals(opt, ignoreCase = true),
+                        selected = isSelected,
                         onClick = {
                             if (!readOnly) {
-                                status = opt
+                                status = value
                                 justSaved = false
                                 vm.clearEvidenceError()
                             }
                         },
                         enabled = !readOnly,
-                        label = { Text(opt) },
-                        colors = FilterChipDefaults.filterChipColors()
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = statusColors[value] ?: MaterialTheme.colorScheme.secondary,
+                            selectedLabelColor = Color.White
+                        )
                     )
                 }
             }
@@ -335,13 +433,18 @@ private fun ItemCard(
             if (!readOnly) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val parsed = numberStr.toDoubleOrNull()
+                    val isSaveEnabled = status.isNotBlank() && !loading && (attachmentsForThisItem.size >= photosNeeded)
+                    val isSaved = justSaved && evidenceError == null && !loading
+
                     Button(
-                        enabled = status.isNotBlank() && !loading,
+                        enabled = isSaveEnabled && !isSaved,
                         onClick = {
                             vm.clearEvidenceError()
                             onSave(status.trim(), respText.trim().ifBlank { null }, parsed)
-                        }
-                    ) { Text(if (justSaved && evidenceError == null && !loading) "Guardado ✓" else "Guardar respuesta") }
+                            justSaved = true
+                        },
+                        colors = if (isSaved) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) else ButtonDefaults.buttonColors()
+                    ) { Text(if (isSaved) "Guardado ✓" else "Guardar respuesta") }
                 }
             }
         }
@@ -394,4 +497,14 @@ private fun uriToFile(context: Context, uri: Uri): File? {
         e.printStackTrace()
         null
     }
+}
+
+private fun createImageFile(context: Context): File {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val storageDir = context.cacheDir // Usar cacheDir para evitar guardar en galería
+    return File.createTempFile(
+        "JPEG_${timeStamp}_",
+        ".jpg",
+        storageDir
+    )
 }
