@@ -191,7 +191,7 @@ private fun ItemCard(
             if (success) {
                 tempImageUri?.let { uri ->
                     uriToFile(context, uri)?.let { file ->
-                        vm.uploadAttachments(item.id, listOf(file))
+                        vm.uploadAttachment(item.id, file, uri.toString())
                     }
                 }
             }
@@ -320,11 +320,11 @@ private fun ItemCard(
                         Text("(No hay fotos adjuntas)", style = MaterialTheme.typography.bodySmall)
                     } else {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(attachmentsForThisItem) { att ->
+                            items(attachmentsForThisItem, key = { it.id }) { att ->
                                 Box(modifier = Modifier.size(100.dp)) {
-                                    val imageUrl = "http://172.16.16.22:3000${att.url}"
+                                    val imageModel = att.localUri ?: "http://172.16.16.22:3000${att.url}"
                                     Image(
-                                        painter = rememberAsyncImagePainter(imageUrl),
+                                        painter = rememberAsyncImagePainter(imageModel),
                                         contentDescription = "Foto adjunta ${att.id}",
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop

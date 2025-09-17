@@ -150,10 +150,30 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         }
     }
 
-    fun uploadAttachments(itemId: Long, files: List<java.io.File>, onOk: (() -> Unit)? = null) {
+    fun uploadAttachment(itemId: Long, file: java.io.File, localUri: String) {
         viewModelScope.launch {
-            safe {
-                repo.uploadAttachments(itemId, files)
+            val tempId = -System.currentTimeMillis().toInt()
+            val tempAttachment = AttachmentDto(
+                id = tempId,
+                type = "PHOTO",
+                url = "", // No hay URL remota todavía
+                createdAt = "", // No es relevante para el temporal
+                localUri = localUri
+            )
+
+            // 1. Actualización optimista: añadir el adjunto temporal a la UI
+            _runItems.value = _runItems.value.map { runItem ->
+                if (runItem.id == itemId) {
+                    runItem.copy(attachments = runItem.attachments.orEmpty() + tempAttachment)
+                } else {
+                    runItem
+                }
+            }
+
+            // 2. Subir el archivo en segundo plano
+            try {
+                repo.uploadAttachments(itemId, listOf(file))
+                // 3. Al tener éxito, refrescar la lista desde el servidor
                 val newAttachments = repo.listAttachments(itemId)
                 _runItems.value = _runItems.value.map { runItem ->
                     if (runItem.id == itemId) {
@@ -162,7 +182,17 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                         runItem
                     }
                 }
-                onOk?.invoke()
+            } catch (e: Exception) {
+                // 4. Si falla, eliminar el adjunto temporal de la UI
+                _runItems.value = _runItems.value.map { runItem ->
+                    if (runItem.id == itemId) {
+                        runItem.copy(attachments = runItem.attachments.orEmpty().filter { it.id != tempId })
+                    } else {
+                        runItem
+                    }
+                }
+                // Opcional: notificar al usuario del error
+                _error.value = "Fallo al subir la imagen: ${e.message}"
             }
         }
     }
