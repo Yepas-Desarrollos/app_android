@@ -41,6 +41,19 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     fun clearError() { _error.value = null }
     fun clearEvidenceError() { _evidenceError.value = null }
 
+    // Método para limpiar cache cuando cambia el usuario
+    fun clearCache() {
+        _stores.value = emptyList()
+        _templates.value = emptyList()
+        _runItems.value = emptyList()
+        _runItemsLoadedFor.value = null
+        _runInfo.value = null
+        _pendingRuns.value = emptyList()
+        _historyRuns.value = emptyList()
+        _error.value = null
+        _evidenceError.value = null
+    }
+
     fun getStores(): StateFlow<List<StoreDto>> {
         if (_stores.value.isEmpty()) viewModelScope.launch { safe { _stores.value = repo.stores() } }
         return _stores

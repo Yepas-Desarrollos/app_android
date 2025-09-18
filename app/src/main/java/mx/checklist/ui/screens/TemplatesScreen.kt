@@ -1,5 +1,6 @@
 package mx.checklist.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,10 +35,13 @@ fun TemplatesScreen(
     val error by vm.error.collectAsStateWithLifecycle()
     val allTemplates = vm.getTemplates().collectAsStateWithLifecycle().value
 
-    // Solo “Supervisores”
-    val templates = allTemplates
-        .filter { it.scope?.equals("Supervisores", ignoreCase = true) == true }
-        .sortedBy { it.name.lowercase(Locale.getDefault()) }
+    // Log de diagnóstico para ver tamaño y nombres
+    LaunchedEffect(allTemplates) {
+        Log.d("TEMPLATES", "count=${allTemplates.size} names=${allTemplates.joinToString { it.name }}")
+    }
+
+    // NO filtrar por scope - el backend ya filtra por rol
+    val templates = allTemplates.sortedBy { it.name.lowercase(Locale.getDefault()) }
 
     // Sugerencias por día (Calendar = minSdk 24 OK)
     val day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
@@ -67,13 +72,24 @@ fun TemplatesScreen(
             }
         }
 
+        // Mostrar mensaje si no hay templates
+        if (templates.isEmpty() && !loading) {
+            item {
+                Text(
+                    "No hay plantillas disponibles para tu rol",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // Sugeridas
         if (recommendedUnique.isNotEmpty()) {
             item { Divider(Modifier.padding(vertical = 8.dp)) }
             item { Text("Sugeridas para hoy ($suggestedGroup)", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = recommendedUnique,
-                key = { t -> "rec-${t.id}" } //  key con prefijo de sección
+                key = { t -> "rec-${t.id}" }
             ) { t ->
                 TemplateCard(
                     t = t,
@@ -90,7 +106,7 @@ fun TemplatesScreen(
             item { Text("Lunes y Martes", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = groupLM,
-                key = { t -> "lm-${t.id}" } //  key con prefijo
+                key = { t -> "lm-${t.id}" }
             ) { t ->
                 TemplateCard(
                     t = t,
@@ -106,7 +122,7 @@ fun TemplatesScreen(
             item { Text("Miércoles a Domingo", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = groupMD,
-                key = { t -> "md-${t.id}" } //  key con prefijo
+                key = { t -> "md-${t.id}" }
             ) { t ->
                 TemplateCard(
                     t = t,
@@ -122,7 +138,7 @@ fun TemplatesScreen(
             item { Text("Otros", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = others,
-                key = { t -> "oth-${t.id}" } //  key con prefijo
+                key = { t -> "oth-${t.id}" }
             ) { t ->
                 TemplateCard(
                     t = t,

@@ -8,17 +8,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 
 @Composable
 fun HomeScreen(
-    vm: RunsViewModel,                // reservado por si luego mostramos resumenes
+    vm: RunsViewModel,
+    authVM: AuthViewModel? = null,
     onNuevaCorrida: () -> Unit,
-    onOpenHistory: () -> Unit
+    onOpenHistory: () -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -35,6 +39,17 @@ fun HomeScreen(
             }
         }
 
-        // Aquí puedes agregar otras secciones de acceso (Reportes, Configuración, etc.)
+        // Botón de logout si se proporciona authVM
+        authVM?.let {
+            OutlinedButton(
+                onClick = {
+                    vm.clearCache()
+                    authVM.logout(onLogout)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Cerrar sesión")
+            }
+        }
     }
 }

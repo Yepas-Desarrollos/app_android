@@ -41,8 +41,10 @@ class MainActivity : ComponentActivity() {
                     composable(Routes.Home) {
                         HomeScreen(
                             vm = runsVM,
+                            authVM = authVM,
                             onNuevaCorrida = { nav.navigate(Routes.Stores) },
-                            onOpenHistory = { nav.navigate(Routes.History) }
+                            onOpenHistory = { nav.navigate(Routes.History) },
+                            onLogout = { nav.navigate(Routes.Login) { popUpTo(0) } }
                         )
                     }
 

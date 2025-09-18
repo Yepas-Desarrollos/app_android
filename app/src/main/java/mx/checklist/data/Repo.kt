@@ -1,8 +1,10 @@
 package mx.checklist.data
 
+import android.util.Log
 import mx.checklist.data.api.Api
 import mx.checklist.data.api.ApiClient
 import mx.checklist.data.api.dto.*
+import mx.checklist.data.auth.Authenticated
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -12,14 +14,46 @@ class Repo(
     private val api: Api = ApiClient.api,
     private val tokenStore: TokenStore
 ) {
-    suspend fun login(email: String, password: String) {
-        val res = api.login(LoginReq(email.trim(), password))
-        tokenStore.saveToken(res.access_token)
+    // Campo de caché opcional
+    private var cachedTemplates: List<TemplateDto>? = null
+
+    suspend fun login(req: LoginReq): Authenticated {
+        val res = api.login(req)
+        val auth = Authenticated(token = res.access_token, roleCode = res.roleCode)
+        tokenStore.save(auth)
         ApiClient.setToken(res.access_token)
+
+        // Limpia cachés por usuario
+        cachedTemplates = null
+
+        return auth
+    }
+
+    suspend fun login(email: String, password: String): Authenticated {
+        return login(LoginReq(email.trim(), password))
+    }
+
+    suspend fun logout() {
+        tokenStore.clear()
+        cachedTemplates = null
+        ApiClient.setToken(null)
     }
 
     suspend fun stores(): List<StoreDto> = api.stores()
-    suspend fun templates(): List<TemplateDto> = api.templates()
+
+    suspend fun templates(): List<TemplateDto> {
+        // Si ya hay caché, retornarlo
+        cachedTemplates?.let { return it }
+
+        val list = api.templates()
+        // No aplicar filtros por scope aquí. El backend ya filtra por rol.
+        cachedTemplates = list
+
+        // Log de diagnóstico
+        Log.d("TEMPLATES", "count=${list.size} names=${list.joinToString { it.name }}")
+
+        return list
+    }
 
     suspend fun createRun(storeCode: String, templateId: Long): RunRes =
         api.createRun(CreateRunReq(storeCode.trim(), templateId))
