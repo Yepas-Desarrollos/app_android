@@ -49,7 +49,7 @@ fun TemplatesScreen(
     // Recomendadas (subset del tramo del día)
     val recommended = templates.filter { it.name.contains(suggestedGroup, ignoreCase = true) }
 
-    // ✅ Evitar DUPLICADOS entre secciones
+    //  Evitar DUPLICADOS entre secciones
     val idsLM = groupLM.map { it.id }.toSet()
     val idsMD = groupMD.map { it.id }.toSet()
 
@@ -73,7 +73,7 @@ fun TemplatesScreen(
             item { Text("Sugeridas para hoy ($suggestedGroup)", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = recommendedUnique,
-                key = { t -> "rec-${t.id}" } // ✅ key con prefijo de sección
+                key = { t -> "rec-${t.id}" } //  key con prefijo de sección
             ) { t ->
                 TemplateCard(
                     t = t,
@@ -90,7 +90,7 @@ fun TemplatesScreen(
             item { Text("Lunes y Martes", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = groupLM,
-                key = { t -> "lm-${t.id}" } // ✅ key con prefijo
+                key = { t -> "lm-${t.id}" } //  key con prefijo
             ) { t ->
                 TemplateCard(
                     t = t,
@@ -106,7 +106,7 @@ fun TemplatesScreen(
             item { Text("Miércoles a Domingo", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = groupMD,
-                key = { t -> "md-${t.id}" } // ✅ key con prefijo
+                key = { t -> "md-${t.id}" } //  key con prefijo
             ) { t ->
                 TemplateCard(
                     t = t,
@@ -122,7 +122,7 @@ fun TemplatesScreen(
             item { Text("Otros", style = MaterialTheme.typography.titleMedium) }
             items(
                 items = others,
-                key = { t -> "oth-${t.id}" } // ✅ key con prefijo
+                key = { t -> "oth-${t.id}" } //  key con prefijo
             ) { t ->
                 TemplateCard(
                     t = t,
