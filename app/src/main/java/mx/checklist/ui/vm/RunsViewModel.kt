@@ -99,7 +99,7 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         }
     }
 
-    fun respond(itemId: Long, status: String?, text: String?, number: Double?, onUpdated: (RunItemDto) -> Unit = {}) {
+    fun respond(itemId: Long, status: String?, text: String?, number: Double?, barcode: String? = null, onUpdated: (RunItemDto) -> Unit = {}) {
         viewModelScope.launch {
             val item = _runItems.value.find { it.id == itemId }
             if (item == null) {
@@ -139,7 +139,24 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                 return@launch
             }
 
-            _evidenceError.value = null
+            // Validación de status solo OK/FAIL para BOOLEAN
+            if (item.itemTemplate?.expectedType.equals("BOOLEAN", ignoreCase = true)) {
+                if (status != "OK" && status != "FAIL") {
+                    _error.value = "Solo se permite OK o FAIL para este campo."
+                    return@launch
+                }
+            }
+
+            // Validación por tipo
+            // (puedes agregar más validaciones según expectedType y config)
+
+            // Construir request con barcode
+            val req = mx.checklist.data.api.dto.RespondReq(
+                responseStatus = status ?: "",
+                responseText = text,
+                responseNumber = number,
+                scannedBarcode = barcode
+            )
             safe {
                 val updatedItemDto = repo.respond(itemId, status, text, number)
                 _runItems.value = _runItems.value.map { currentItemInList ->

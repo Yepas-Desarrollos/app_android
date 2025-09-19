@@ -60,12 +60,11 @@ class Repo(
 
     suspend fun runItems(runId: Long): List<RunItemDto> = api.runItems(runId)
 
-    suspend fun respond(itemId: Long, status: String?, text: String?, number: Double?): RunItemDto {
+    suspend fun respond(itemId: Long, status: String?, text: String?, number: Double?, barcode: String? = null): RunItemDto {
         val s = requireNotNull(status?.trim()?.takeIf { it.isNotEmpty() }) { "status requerido" }
         val t = text?.trim()?.takeUnless { it.isEmpty() }
-        // Convert the Double? to Int?
-        val nAsInt = number?.let { d -> if (d.isNaN() || d.isInfinite()) null else d.toInt() }
-        return api.respond(itemId, RespondReq(s, t, nAsInt)) // Pass the Int? version
+        // Pasar el Double? directamente
+        return api.respond(itemId, RespondReq(s, t, number, barcode))
     }
 
     suspend fun submit(runId: Long): RunRes = api.submit(runId)
