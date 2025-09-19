@@ -119,7 +119,7 @@ fun ItemsScreen(
                 ItemCard(
                     item = item,
                     readOnly = isReadOnly,
-                    vm = vm, // Pass the ViewModel
+                    vm = vm,
                     onSave = { currentStatus, respText, number ->
                         vm.respond(item.id, currentStatus, respText, number)
                     }
@@ -181,6 +181,8 @@ private fun ItemCard(
     val attachmentsForThisItem = item.attachments ?: emptyList()
     val evidenceError by vm.evidenceError.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
+    val uploadingImages by vm.uploadingImages.collectAsStateWithLifecycle()
+    val isUploadingThisItem = uploadingImages.contains(item.id)
 
     val context = LocalContext.current
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -202,7 +204,6 @@ private fun ItemCard(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission is granted. Continue the action
             val newImageFile = createImageFile(context)
             val newImageUri = FileProvider.getUriForFile(
                 context,
@@ -211,18 +212,11 @@ private fun ItemCard(
             )
             tempImageUri = newImageUri
             cameraLauncher.launch(newImageUri)
-        } else {
-            // Explain to the user that the feature is unavailable because the
-            // feature requires a permission that the user has denied.
-            // At this point, you can show a dialog or a snackbar.
         }
     }
 
-    // Eliminar LaunchedEffect que llamaba a vm.loadAttachments
-    // Considerar dónde/cómo clearEvidenceError debe ser llamado si es necesario por ítem.
-    // Por ahora, se mantiene la llamada explícita a vm.clearEvidenceError() antes de onSave y al cambiar de estatus.
     LaunchedEffect(item.id) {
-        vm.clearEvidenceError() // Limpiar error de evidencia específico del ítem al cargar o cambiar el ítem
+        vm.clearEvidenceError()
     }
 
     var status by remember(item.id) { mutableStateOf(item.responseStatus.orEmpty()) }
@@ -239,8 +233,10 @@ private fun ItemCard(
     val evidenceConfig = remember(item.itemTemplate?.config) {
         item.itemTemplate?.config?.get("evidence") as? Map<String, Any?>
     }
-    // Actualizar photoEvidenceRequiredText para usar attachmentsForThisItem.size
-    var photoEvidenceRequiredText by remember(item.id, evidenceConfig, status, attachmentsForThisItem.size) { mutableStateOf<String?>(null) }
+
+    var photoEvidenceRequiredText by remember(item.id, evidenceConfig, status, attachmentsForThisItem.size) {
+        mutableStateOf<String?>(null)
+    }
     var photosNeeded by remember { mutableStateOf(0) }
 
     LaunchedEffect(item.id, evidenceConfig, status, attachmentsForThisItem.size) {
@@ -268,8 +264,7 @@ private fun ItemCard(
                 photosActuallyNeeded = if (minCount > 0) minCount else 1
             } else if (required) {
                 photosActuallyNeeded = minCount
-            }
-            else if (minCount > 0 && photosActuallyNeeded == 0) {
+            } else if (minCount > 0 && photosActuallyNeeded == 0) {
                 photosActuallyNeeded = minCount
             }
 
@@ -283,8 +278,8 @@ private fun ItemCard(
                     photoEvidenceRequiredText = "Fotos: ${attachmentsForThisItem.size} / $photosActuallyNeeded requeridas."
                 }
             } else {
-                // Usar attachmentsForThisItem.size
-                photoEvidenceRequiredText = if (itemExpectedType == "PHOTO" || itemExpectedType == "MULTIPHOTO") "Fotos: ${attachmentsForThisItem.size} (opcional)" else null
+                photoEvidenceRequiredText = if (itemExpectedType == "PHOTO" || itemExpectedType == "MULTIPHOTO")
+                    "Fotos: ${attachmentsForThisItem.size} (opcional)" else null
             }
         } else {
             photoEvidenceRequiredText = null
@@ -305,13 +300,20 @@ private fun ItemCard(
                 val currentMinCount = extractMinCount(evidenceConfig, status, item.itemTemplate?.expectedType)
                 val photosAreMissing = currentMinCount > attachmentsForThisItem.size
                 val isError = evidenceError != null || (photosAreMissing && currentMinCount > 0)
-                Text(it, style = MaterialTheme.typography.bodySmall, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             evidenceError?.let {
                 Text("$it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
 
-            val shouldShowEvidenceSection = evidenceConfig != null || item.itemTemplate?.expectedType.equals("PHOTO", true) || item.itemTemplate?.expectedType.equals("MULTIPHOTO", true)
+            val shouldShowEvidenceSection = evidenceConfig != null ||
+                item.itemTemplate?.expectedType.equals("PHOTO", true) ||
+                item.itemTemplate?.expectedType.equals("MULTIPHOTO", true)
+
             if (shouldShowEvidenceSection) {
                 Column(modifier = Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Evidencia Fotográfica", style = MaterialTheme.typography.titleSmall)
@@ -346,29 +348,41 @@ private fun ItemCard(
                     }
 
                     if (!readOnly) {
-                        Button(onClick = {
-                            when (PackageManager.PERMISSION_GRANTED) {
-                                ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.CAMERA
-                                ) -> {
-                                    // You can use the API that requires the permission.
-                                    val newImageFile = createImageFile(context)
-                                    val newImageUri = FileProvider.getUriForFile(
+                        Button(
+                            onClick = {
+                                when (PackageManager.PERMISSION_GRANTED) {
+                                    ContextCompat.checkSelfPermission(
                                         context,
-                                        "${context.packageName}.provider",
-                                        newImageFile
-                                    )
-                                    tempImageUri = newImageUri
-                                    cameraLauncher.launch(newImageUri)
+                                        Manifest.permission.CAMERA
+                                    ) -> {
+                                        val newImageFile = createImageFile(context)
+                                        val newImageUri = FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.provider",
+                                            newImageFile
+                                        )
+                                        tempImageUri = newImageUri
+                                        cameraLauncher.launch(newImageUri)
+                                    }
+                                    else -> {
+                                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
                                 }
-                                else -> {
-                                    // You can directly ask for the permission.
-                                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                                }
+                            },
+                            enabled = !isUploadingThisItem,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isUploadingThisItem) {
+                                Text("Subiendo imagen...")
+                            } else {
+                                Text("Tomar Foto")
                             }
-                        }) {
-                            Text("Tomar Foto")
+                        }
+
+                        if (isUploadingThisItem) {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -380,14 +394,12 @@ private fun ItemCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val statusOptions = mapOf(
-                    "OK" to "Realizado",
-                    "FAIL" to "No realizado",
-                    "NA" to "No aplica"
+                    "OK" to "SÍ",
+                    "FAIL" to "NO"
                 )
                 val statusColors = mapOf(
-                    "OK" to Color(0xFF4CAF50), // Verde
-                    "FAIL" to Color(0xFFF44336), // Rojo
-                    "NA" to Color(0xFF9E9E9E) // Gris
+                    "OK" to Color(0xFF4CAF50),
+                    "FAIL" to Color(0xFFF44336)
                 )
 
                 statusOptions.forEach { (value, label) ->
@@ -433,8 +445,9 @@ private fun ItemCard(
             if (!readOnly) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val parsed = numberStr.toDoubleOrNull()
-                    val isSaveEnabled = status.isNotBlank() && !loading && (attachmentsForThisItem.size >= photosNeeded)
-                    val isSaved = justSaved && evidenceError == null && !loading
+                    val isSaveEnabled = status.isNotBlank() && !loading && !isUploadingThisItem &&
+                        (attachmentsForThisItem.size >= photosNeeded)
+                    val isSaved = justSaved && evidenceError == null && !loading && !isUploadingThisItem
 
                     Button(
                         enabled = isSaveEnabled && !isSaved,
@@ -443,8 +456,16 @@ private fun ItemCard(
                             onSave(status.trim(), respText.trim().ifBlank { null }, parsed)
                             justSaved = true
                         },
-                        colors = if (isSaved) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) else ButtonDefaults.buttonColors()
-                    ) { Text(if (isSaved) "Guardado ✓" else "Guardar respuesta") }
+                        colors = if (isSaved) ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        ) else ButtonDefaults.buttonColors()
+                    ) {
+                        when {
+                            isUploadingThisItem -> Text("Subiendo imagen...")
+                            isSaved -> Text("Guardado ✓")
+                            else -> Text("Guardar respuesta")
+                        }
+                    }
                 }
             }
         }
@@ -474,8 +495,7 @@ private fun extractMinCount(evidenceConfig: Map<String, Any?>?, currentStatus: S
             photosNeeded = if (minCount > 0) minCount else 1
         } else if (required) {
             photosNeeded = minCount
-        }
-        else if (minCount > 0 && photosNeeded == 0) {
+        } else if (minCount > 0 && photosNeeded == 0) {
             photosNeeded = minCount
         }
     }
@@ -501,7 +521,7 @@ private fun uriToFile(context: Context, uri: Uri): File? {
 
 private fun createImageFile(context: Context): File {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = context.cacheDir // Usar cacheDir para evitar guardar en galería
+    val storageDir = context.cacheDir
     return File.createTempFile(
         "JPEG_${timeStamp}_",
         ".jpg",

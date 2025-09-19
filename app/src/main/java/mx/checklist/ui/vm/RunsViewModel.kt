@@ -33,10 +33,12 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     private val _historyRuns = MutableStateFlow<List<RunSummaryDto>>(emptyList())
     fun historyRunsFlow(): StateFlow<List<RunSummaryDto>> = _historyRuns
 
-    // Se eliminó _itemAttachments y itemAttachments (la lista global de adjuntos)
-
     private val _evidenceError = MutableStateFlow<String?>(null)
     val evidenceError: StateFlow<String?> = _evidenceError
+
+    // Estado específico para uploads de imágenes
+    private val _uploadingImages = MutableStateFlow<Set<Long>>(emptySet())
+    val uploadingImages: StateFlow<Set<Long>> = _uploadingImages
 
     fun clearError() { _error.value = null }
     fun clearEvidenceError() { _evidenceError.value = null }
@@ -52,6 +54,7 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         _historyRuns.value = emptyList()
         _error.value = null
         _evidenceError.value = null
+        _uploadingImages.value = emptySet()
     }
 
     fun getStores(): StateFlow<List<StoreDto>> {
@@ -76,7 +79,6 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         if (_runItemsLoadedFor.value == runId && _runItems.value.isNotEmpty()) return
         viewModelScope.launch {
             safe {
-                // Asumimos que repo.runItems(runId) ya incluye los attachments en cada RunItemDto
                 _runItems.value = repo.runItems(runId)
                 _runItemsLoadedFor.value = runId
             }
@@ -92,7 +94,7 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             safe {
                 val res = repo.createRun(storeCode, templateId)
                 onCreated(res.id)
-                _pendingRuns.value = repo.pendingRuns() // Refresh pending runs
+                _pendingRuns.value = repo.pendingRuns()
             }
         }
     }
@@ -117,7 +119,6 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             }
 
             var photosNeeded = 0
-            // Usar los adjuntos del item específico desde _runItems
             val currentPhotoCount = item.attachments?.size ?: 0
 
             if (requiredOnFail && status.equals("FAIL", ignoreCase = true)) {
@@ -125,8 +126,9 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             } else if (evidenceRequired) {
                 photosNeeded = minCount
             }
-            
-            if (item.itemTemplate?.expectedType.equals("PHOTO", ignoreCase = true) || item.itemTemplate?.expectedType.equals("MULTIPHOTO", ignoreCase = true)) {
+
+            if (item.itemTemplate?.expectedType.equals("PHOTO", ignoreCase = true) ||
+                item.itemTemplate?.expectedType.equals("MULTIPHOTO", ignoreCase = true)) {
                 if (evidenceConfig == null && photosNeeded == 0) {
                      photosNeeded = 1
                 }
@@ -142,22 +144,17 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                 val updatedItemDto = repo.respond(itemId, status, text, number)
                 _runItems.value = _runItems.value.map { currentItemInList ->
                     if (currentItemInList.id == updatedItemDto.id) {
-                        // Conservamos los adjuntos que YA TENÍA el currentItemInList (que es el 'item' original)
-                        // y actualizamos el resto de los campos con lo que vino de la respuesta del backend.
                         currentItemInList.copy(
                             responseStatus = updatedItemDto.responseStatus,
                             responseText = updatedItemDto.responseText,
                             responseNumber = updatedItemDto.responseNumber,
                             respondedAt = updatedItemDto.respondedAt
-                            // Asegúrate de que attachments NO se actualice desde updatedItemDto aquí,
-                            // ya que updatedItemDto probablemente no los incluya o los incluya vacíos.
-                            // Los attachments se manejan por separado en uploadAttachments/deleteAttachment.
                         )
                     } else {
                         currentItemInList
                     }
                 }
-                val finalItemToShow = _runItems.value.find { it.id == updatedItemDto.id } ?: updatedItemDto // Debería encontrar el actualizado
+                val finalItemToShow = _runItems.value.find { it.id == updatedItemDto.id } ?: updatedItemDto
                 onUpdated(finalItemToShow)
             }
         }
@@ -165,12 +162,15 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     fun uploadAttachment(itemId: Long, file: java.io.File, localUri: String) {
         viewModelScope.launch {
+            // Marcar que este item está subiendo una imagen
+            _uploadingImages.value = _uploadingImages.value + itemId
+
             val tempId = -System.currentTimeMillis().toInt()
             val tempAttachment = AttachmentDto(
                 id = tempId,
                 type = "PHOTO",
-                url = "", // No hay URL remota todavía
-                createdAt = "", // No es relevante para el temporal
+                url = "",
+                createdAt = "",
                 localUri = localUri
             )
 
@@ -183,34 +183,63 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                 }
             }
 
-            // 2. Subir el archivo en segundo plano
-            try {
-                repo.uploadAttachments(itemId, listOf(file))
-                // 3. Al tener éxito, refrescar la lista desde el servidor
-                val newAttachments = repo.listAttachments(itemId)
-                _runItems.value = _runItems.value.map { runItem ->
-                    if (runItem.id == itemId) {
-                        runItem.copy(attachments = newAttachments)
+            // 2. Subir el archivo en segundo plano con reintentos
+            var retryCount = 0
+            val maxRetries = 3
+            var uploadSuccess = false
+
+            while (retryCount < maxRetries && !uploadSuccess) {
+                try {
+                    repo.uploadAttachments(itemId, listOf(file))
+                    uploadSuccess = true
+
+                    // 3. Al tener éxito, refrescar la lista desde el servidor
+                    val newAttachments = repo.listAttachments(itemId)
+                    _runItems.value = _runItems.value.map { runItem ->
+                        if (runItem.id == itemId) {
+                            runItem.copy(attachments = newAttachments)
+                        } else {
+                            runItem
+                        }
+                    }
+
+                    // Limpiar cualquier error previo
+                    _evidenceError.value = null
+
+                } catch (e: Exception) {
+                    retryCount++
+                    if (retryCount < maxRetries) {
+                        // Esperar antes del siguiente intento (backoff exponencial)
+                        kotlinx.coroutines.delay(2000L * retryCount)
                     } else {
-                        runItem
+                        // 4. Si falla después de todos los reintentos, eliminar el adjunto temporal
+                        _runItems.value = _runItems.value.map { runItem ->
+                            if (runItem.id == itemId) {
+                                runItem.copy(attachments = runItem.attachments.orEmpty().filter { it.id != tempId })
+                            } else {
+                                runItem
+                            }
+                        }
+
+                        // Determinar el tipo de error y mostrar mensaje específico
+                        val errorMessage = when {
+                            e.message?.contains("timeout", ignoreCase = true) == true ->
+                                "Error de conexión: La subida tomó demasiado tiempo. Verifica tu conexión e intenta de nuevo."
+                            e.message?.contains("network", ignoreCase = true) == true ->
+                                "Error de red: Verifica tu conexión a internet."
+                            e.message?.contains("413", ignoreCase = true) == true ->
+                                "La imagen es demasiado grande. Intenta con una imagen más pequeña."
+                            else -> "Error al subir la imagen: ${e.message}. Intenta de nuevo."
+                        }
+                        _evidenceError.value = errorMessage
                     }
                 }
-            } catch (e: Exception) {
-                // 4. Si falla, eliminar el adjunto temporal de la UI
-                _runItems.value = _runItems.value.map { runItem ->
-                    if (runItem.id == itemId) {
-                        runItem.copy(attachments = runItem.attachments.orEmpty().filter { it.id != tempId })
-                    } else {
-                        runItem
-                    }
-                }
-                // Opcional: notificar al usuario del error
-                _error.value = "Fallo al subir la imagen: ${e.message}"
             }
+
+            // Remover el item del estado de carga
+            _uploadingImages.value = _uploadingImages.value - itemId
         }
     }
-    
-    // Se eliminó la función loadAttachments(itemId: Long) ya que no se necesitará
 
     fun deleteAttachment(itemId: Long, attachmentId: Int) {
         viewModelScope.launch {
@@ -252,15 +281,14 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     fun canSubmitAll(): Pair<Boolean, String?> {
         val items = _runItems.value
-        for (it in items) { // 'it' aquí es RunItemDto
-            val tpl = it.itemTemplate
+        for (item in items) {
+            val tpl = item.itemTemplate
             val cfg = tpl?.config ?: emptyMap<String, Any>()
-            // Usar los adjuntos directamente del RunItemDto 'it'
-            val attachments = it.attachments ?: emptyList()
+            val attachments = item.attachments ?: emptyList()
 
             fun cfgInt(key: String, map: Map<String, Any?>? = cfg): Int? = (map?.get(key) as? Number)?.toInt()
             fun cfgBool(key: String, map: Map<String, Any?>? = cfg): Boolean = (map?.get(key) as? Boolean) == true
-            
+
             val evidenceConfig = cfg["evidence"] as? Map<String, Any?>
 
             if (evidenceConfig != null && evidenceConfig["type"] == "PHOTO") {
@@ -269,27 +297,27 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                 val requiredOnFail = cfgBool("requiredOnFail", evidenceConfig)
 
                 var photosActuallyNeeded = 0
-                if (requiredOnFail && it.responseStatus.equals("FAIL", ignoreCase = true)) {
+                if (requiredOnFail && item.responseStatus.equals("FAIL", ignoreCase = true)) {
                     photosActuallyNeeded = if (minCount > 0) minCount else 1
                 } else if (required) {
                     photosActuallyNeeded = minCount
                 }
-                
+
                 if (attachments.size < photosActuallyNeeded) {
-                    return false to "Ítem #${it.orderIndex} '${tpl?.title}': requiere $photosActuallyNeeded foto(s)."
+                    return false to "Ítem #${item.orderIndex} '${tpl?.title}': requiere $photosActuallyNeeded foto(s)."
                 }
-            } else if (tpl?.expectedType.equals("PHOTO", ignoreCase = true) || tpl?.expectedType.equals("MULTIPHOTO", ignoreCase = true)) {
+            } else if (tpl?.expectedType.equals("PHOTO", ignoreCase = true) ||
+                       tpl?.expectedType.equals("MULTIPHOTO", ignoreCase = true)) {
                  if (attachments.isEmpty()) {
-                    return false to "Ítem #${it.orderIndex} '${tpl?.title}': requiere al menos 1 foto."
+                    return false to "Ítem #${item.orderIndex} '${tpl?.title}': requiere al menos 1 foto."
                 }
             }
 
             when (tpl?.expectedType?.uppercase()) {
                 "CHOICE" -> {
-                    val s = it.responseStatus.orEmpty()
-                    if (s.isBlank()) return false to "Falta estatus en ítem #${it.orderIndex} '${tpl.title}'"
+                    val s = item.responseStatus.orEmpty()
+                    if (s.isBlank()) return false to "Falta estatus en ítem #${item.orderIndex} '${tpl.title}'"
                 }
-                // PHOTO/MULTIPHOTO handled above
                 "NUMERIC" -> {
                     // Validation logic can be added here
                 }
@@ -300,12 +328,12 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     private suspend inline fun safe(crossinline block: suspend () -> Unit) {
         try {
-            _error.value = null 
+            _error.value = null
             _loading.value = true
             block()
         } catch (t: Throwable) {
             _error.value = t.message ?: "Error inesperado"
-            t.printStackTrace() // Helpful for debugging
+            t.printStackTrace()
         } finally {
             _loading.value = false
         }

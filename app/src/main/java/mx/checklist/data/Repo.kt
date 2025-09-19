@@ -89,7 +89,8 @@ class Repo(
             val body: RequestBody = RequestBody.create(media, file)
             MultipartBody.Part.createFormData("files", file.name, body)
         }
-        return api.uploadAttachments(itemId, parts)
+        // Usar el cliente específico para uploads con timeouts más largos
+        return ApiClient.uploadApi.uploadAttachments(itemId, parts)
     }
 
     // Added method
