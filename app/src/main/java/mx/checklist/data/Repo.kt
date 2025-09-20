@@ -101,4 +101,44 @@ class Repo(
     suspend fun deleteAttachment(itemId: Long, attachmentId: Int): DeleteAttachmentRes {
         return api.deleteAttachment(itemId, attachmentId)
     }
+
+    // === ADMIN METHODS ===
+    
+    suspend fun adminGetTemplates(): List<AdminTemplateDto> {
+        return api.adminGetTemplates()
+    }
+
+    suspend fun adminCreateTemplate(request: CreateTemplateDto): CreateTemplateRes {
+        // Limpiar caché de templates normales
+        cachedTemplates = null
+        return api.adminCreateTemplate(request)
+    }
+
+    suspend fun adminGetTemplate(templateId: Long): AdminTemplateDto {
+        return api.adminGetTemplate(templateId)
+    }
+
+    suspend fun adminUpdateTemplate(templateId: Long, request: UpdateTemplateDto): AdminTemplateDto {
+        // Limpiar caché de templates normales
+        cachedTemplates = null
+        return api.adminUpdateTemplate(templateId, request)
+    }
+
+    suspend fun adminDeleteTemplate(templateId: Long): DeleteRes {
+        // Limpiar caché de templates normales
+        cachedTemplates = null
+        return api.adminDeleteTemplate(templateId)
+    }
+
+    suspend fun adminCreateItem(templateId: Long, request: CreateItemTemplateDto): CreateItemTemplateRes {
+        return api.adminCreateItem(templateId, request)
+    }
+
+    suspend fun adminUpdateItem(templateId: Long, itemId: Long, request: UpdateItemTemplateDto): ItemTemplateDto {
+        return api.adminUpdateItem(templateId, itemId, request)
+    }
+
+    suspend fun adminDeleteItem(templateId: Long, itemId: Long): DeleteRes {
+        return api.adminDeleteItem(templateId, itemId)
+    }
 }

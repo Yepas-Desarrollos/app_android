@@ -6,16 +6,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.ui.components.admin.AdminAccessButton
+import mx.checklist.ui.components.admin.AdminBadge
 
 @Composable
 fun StoresScreen(
     vm: RunsViewModel,
-    onStoreSelected: (String) -> Unit
+    onStoreSelected: (String) -> Unit,
+    onAdminAccess: (() -> Unit)? = null
 ) {
     val storesFlow = vm.getStores()
     val stores by storesFlow.collectAsStateWithLifecycle()
@@ -25,7 +29,23 @@ fun StoresScreen(
     var query by remember { mutableStateOf(TextFieldValue("")) }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Tiendas", style = MaterialTheme.typography.headlineMedium)
+        // Header con título y badge admin
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Tiendas", style = MaterialTheme.typography.headlineMedium)
+            AdminBadge()
+        }
+
+        // Botón de acceso admin
+        onAdminAccess?.let { adminCallback ->
+            AdminAccessButton(
+                onAdminAccess = adminCallback,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         OutlinedTextField(
             value = query,

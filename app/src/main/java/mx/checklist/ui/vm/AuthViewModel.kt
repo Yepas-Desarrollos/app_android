@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import mx.checklist.data.Repo
 import mx.checklist.data.auth.Authenticated
+import mx.checklist.data.auth.AuthState
+import mx.checklist.data.api.ApiClient
 
 data class LoginState(
     val loading: Boolean = false,
@@ -28,6 +30,14 @@ class AuthViewModel(private val repo: Repo) : ViewModel() {
             try {
                 _state.value = LoginState(loading = true)
                 val auth = repo.login(email, password)
+                
+                // Actualizar AuthState global
+                AuthState.token = auth.token
+                AuthState.roleCode = auth.roleCode
+                
+                // IMPORTANTE: Sincronizar token con ApiClient
+                ApiClient.setToken(auth.token)
+                
                 _state.value = LoginState(authenticated = auth)
                 onOk()
             } catch (t: Throwable) {
@@ -40,10 +50,21 @@ class AuthViewModel(private val repo: Repo) : ViewModel() {
         viewModelScope.launch {
             try {
                 repo.logout()
+                
+                // Limpiar AuthState global
+                AuthState.token = null
+                AuthState.roleCode = null
+                
+                // IMPORTANTE: Limpiar token en ApiClient
+                ApiClient.setToken(null)
+                
                 _state.value = LoginState()
                 onComplete()
             } catch (t: Throwable) {
                 // Log error but still clear state
+                AuthState.token = null
+                AuthState.roleCode = null
+                ApiClient.setToken(null)
                 _state.value = LoginState()
                 onComplete()
             }

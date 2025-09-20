@@ -65,4 +65,45 @@ interface Api {
         @Path("itemId") itemId: Long,
         @Path("attachmentId") attachmentId: Int
     ): DeleteAttachmentRes
+
+    // === ADMIN ENDPOINTS ===
+    
+    // Templates CRUD
+    @GET("admin/templates")
+    suspend fun adminGetTemplates(): List<AdminTemplateDto>
+
+    @POST("admin/templates")
+    suspend fun adminCreateTemplate(@Body body: CreateTemplateDto): CreateTemplateRes
+
+    @GET("admin/templates/{id}")
+    suspend fun adminGetTemplate(@Path("id") templateId: Long): AdminTemplateDto
+
+    @PATCH("admin/templates/{id}")
+    suspend fun adminUpdateTemplate(
+        @Path("id") templateId: Long,
+        @Body body: UpdateTemplateDto
+    ): AdminTemplateDto
+
+    @DELETE("admin/templates/{id}")
+    suspend fun adminDeleteTemplate(@Path("id") templateId: Long): DeleteRes
+
+    // Items CRUD
+    @POST("admin/templates/{templateId}/items")
+    suspend fun adminCreateItem(
+        @Path("templateId") templateId: Long,
+        @Body body: CreateItemTemplateDto
+    ): CreateItemTemplateRes
+
+    @PATCH("admin/templates/{templateId}/items/{id}")
+    suspend fun adminUpdateItem(
+        @Path("templateId") templateId: Long,
+        @Path("id") itemId: Long,
+        @Body body: UpdateItemTemplateDto
+    ): ItemTemplateDto
+
+    @DELETE("admin/templates/{templateId}/items/{id}")
+    suspend fun adminDeleteItem(
+        @Path("templateId") templateId: Long,
+        @Path("id") itemId: Long
+    ): DeleteRes
 }

@@ -22,6 +22,7 @@ fun HomeScreen(
     authVM: AuthViewModel? = null,
     onNuevaCorrida: () -> Unit,
     onOpenHistory: () -> Unit,
+    onAdminAccess: (() -> Unit)? = null,
     onLogout: () -> Unit = {}
 ) {
     Column(
@@ -36,6 +37,16 @@ fun HomeScreen(
             }
             Button(onClick = onOpenHistory, modifier = Modifier.weight(1f)) {
                 Text("Historial")
+            }
+        }
+
+        // Botón de acceso admin si está disponible
+        onAdminAccess?.let { adminCallback ->
+            Button(
+                onClick = adminCallback,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Administración")
             }
         }
 
