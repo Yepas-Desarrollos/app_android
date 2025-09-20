@@ -36,6 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.RunItemDto
 import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.ui.fields.BarcodeField
+import mx.checklist.ui.fields.MultiSelectField
+import mx.checklist.ui.fields.ScaleField
+import mx.checklist.ui.fields.SingleChoiceField
+import mx.checklist.ui.fields.TextFieldLong
 import java.io.File
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -105,7 +110,8 @@ fun ItemsScreen(
         if (error != null) Text("Error: $error", color = MaterialTheme.colorScheme.error)
 
         Text("$answered / ${items.size} respondidos")
-        LinearProgressIndicator(progress = answered / total.toFloat(), modifier = Modifier.fillMaxWidth())
+        // LinearProgressIndicator: evitar función deprecada
+        LinearProgressIndicator(progress = { answered / total.toFloat() }, modifier = Modifier.fillMaxWidth())
 
         if (loading && items.isEmpty()) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -231,7 +237,7 @@ private fun ItemCard(
     }
 
     val evidenceConfig = remember(item.itemTemplate?.config) {
-        item.itemTemplate?.config?.get("evidence") as? Map<String, Any?>
+        (item.itemTemplate?.config?.get("evidence") as? Map<*, *>)?.mapKeys { it.key.toString() }
     }
 
     var photoEvidenceRequiredText by remember(item.id, evidenceConfig, status, attachmentsForThisItem.size) {
@@ -313,7 +319,6 @@ private fun ItemCard(
             val shouldShowEvidenceSection = evidenceConfig != null ||
                 item.itemTemplate?.expectedType.equals("PHOTO", true) ||
                 item.itemTemplate?.expectedType.equals("MULTIPHOTO", true)
-
             if (shouldShowEvidenceSection) {
                 Column(modifier = Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Evidencia Fotográfica", style = MaterialTheme.typography.titleSmall)
@@ -423,24 +428,163 @@ private fun ItemCard(
                 }
             }
 
-            OutlinedTextField(
-                value = respText,
-                onValueChange = { if (!readOnly) respText = it },
-                label = { Text("Texto (opcional)") },
-                enabled = !readOnly,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Renderizado específico por tipo de campo
+            val expectedType = item.itemTemplate?.expectedType?.uppercase()
+            val config = item.itemTemplate?.config ?: emptyMap()
 
-            OutlinedTextField(
-                value = numberStr,
-                onValueChange = { input ->
-                    if (!readOnly) numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
-                },
-                label = { Text("Número (opcional)") },
-                enabled = !readOnly,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
+            when (expectedType) {
+                "BOOLEAN" -> {
+                    // Solo se muestran los chips OK/FAIL arriba, no campos adicionales
+                    if (!readOnly) {
+                        Text("Campo booleano - selecciona SÍ o NO arriba", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                
+                "SINGLE_CHOICE" -> {
+                    val options = (config["options"] as? List<*>)?.map { it.toString() } ?: emptyList()
+                    if (options.isNotEmpty() && !readOnly) {
+                        Text("Selecciona una opción:")
+                        SingleChoiceField(
+                            options = options,
+                            selected = respText.takeIf { it.isNotBlank() },
+                            onSelect = { selectedOption ->
+                                respText = selectedOption
+                                justSaved = false
+                            }
+                        )
+                    } else if (options.isNotEmpty() && readOnly) {
+                        Text("Opción seleccionada: ${respText.ifBlank { "Ninguna" }}")
+                    }
+                }
+                
+                "MULTISELECT" -> {
+                    val options = (config["options"] as? List<*>)?.map { it.toString() } ?: emptyList()
+                    if (options.isNotEmpty() && !readOnly) {
+                        Text("Selecciona múltiples opciones:")
+                        val selectedOptions = respText.split(",").filter { it.isNotBlank() }
+                        MultiSelectField(
+                            options = options,
+                            selected = selectedOptions,
+                            onSelectionChange = { newSelection ->
+                                respText = newSelection.joinToString(",")
+                                justSaved = false
+                            }
+                        )
+                    } else if (options.isNotEmpty() && readOnly) {
+                        Text("Opciones seleccionadas: ${respText.ifBlank { "Ninguna" }}")
+                    }
+                }
+                
+                "SCALE" -> {
+                    val min = (config["min"] as? Number)?.toInt() ?: 1
+                    val max = (config["max"] as? Number)?.toInt() ?: 10
+                    val step = (config["step"] as? Number)?.toInt() ?: 1
+                    if (!readOnly) {
+                        Text("Calificación (${min} a ${max}):")
+                        ScaleField(
+                            min = min,
+                            max = max,
+                            step = step,
+                            value = numberStr.toIntOrNull(),
+                            onValueChange = { value ->
+                                numberStr = value.toString()
+                                justSaved = false
+                            }
+                        )
+                    } else {
+                        Text("Calificación: ${numberStr.ifBlank { "No calificado" }}")
+                    }
+                }
+                
+                "NUMBER" -> {
+                    if (!readOnly) {
+                        OutlinedTextField(
+                            value = numberStr,
+                            onValueChange = { input ->
+                                numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
+                                justSaved = false
+                            },
+                            label = { Text("Valor numérico") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text("Valor: ${numberStr.ifBlank { "No especificado" }}")
+                    }
+                }
+                
+                "TEXT" -> {
+                    val maxLength = (config["maxLength"] as? Number)?.toInt() ?: 500
+                    if (!readOnly) {
+                        TextFieldLong(
+                            value = respText,
+                            maxLength = maxLength,
+                            onValueChange = { newText ->
+                                respText = newText
+                                justSaved = false
+                            }
+                        )
+                    } else {
+                        Text("Texto: ${respText.ifBlank { "No especificado" }}")
+                    }
+                }
+                
+                "BARCODE" -> {
+                    if (!readOnly) {
+                        BarcodeField(
+                            value = item.scannedBarcode,
+                            onScan = { scannedCode ->
+                                // Actualizar el código escaneado
+                                justSaved = false
+                            }
+                        )
+                    } else {
+                        Text("Código escaneado: ${item.scannedBarcode ?: "No escaneado"}")
+                    }
+                }
+                
+                "PHOTO", "MULTIPHOTO" -> {
+                    // Las fotos ya se manejan en la sección de evidencia arriba
+                    if (!readOnly) {
+                        OutlinedTextField(
+                            value = respText,
+                            onValueChange = { 
+                                respText = it
+                                justSaved = false
+                            },
+                            label = { Text("Comentarios adicionales (opcional)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else if (respText.isNotBlank()) {
+                        Text("Comentarios: $respText")
+                    }
+                }
+                
+                else -> {
+                    // Campos genéricos para tipos no reconocidos
+                    OutlinedTextField(
+                        value = respText,
+                        onValueChange = { if (!readOnly) { respText = it; justSaved = false } },
+                        label = { Text("Texto (opcional)") },
+                        enabled = !readOnly,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = numberStr,
+                        onValueChange = { input ->
+                            if (!readOnly) { 
+                                numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
+                                justSaved = false
+                            }
+                        },
+                        label = { Text("Número (opcional)") },
+                        enabled = !readOnly,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
 
             if (!readOnly) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
