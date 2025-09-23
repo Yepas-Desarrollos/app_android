@@ -393,48 +393,47 @@ private fun ItemCard(
                 }
             }
 
-            Text("Estatus (requerido)")
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val statusOptions = mapOf(
-                    "OK" to "SÍ",
-                    "FAIL" to "NO"
-                )
-                val statusColors = mapOf(
-                    "OK" to Color(0xFF4CAF50),
-                    "FAIL" to Color(0xFFF44336)
-                )
-
-                statusOptions.forEach { (value, label) ->
-                    val isSelected = status.equals(value, ignoreCase = true)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            if (!readOnly) {
-                                status = value
-                                justSaved = false
-                                vm.clearEvidenceError()
-                            }
-                        },
-                        enabled = !readOnly,
-                        label = { Text(label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = statusColors[value] ?: MaterialTheme.colorScheme.secondary,
-                            selectedLabelColor = Color.White
-                        )
-                    )
-                }
-            }
-
             // Renderizado específico por tipo de campo
             val expectedType = item.itemTemplate?.expectedType?.uppercase()
             val config = item.itemTemplate?.config ?: emptyMap()
 
             when (expectedType) {
                 "BOOLEAN" -> {
-                    // Solo se muestran los chips OK/FAIL arriba, no campos adicionales
+                    // Solo para campos BOOLEAN mostramos los chips SÍ/NO
+                    Text("Estatus (requerido)")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val statusOptions = mapOf(
+                            "OK" to "SÍ",
+                            "FAIL" to "NO"
+                        )
+                        val statusColors = mapOf(
+                            "OK" to Color(0xFF4CAF50),
+                            "FAIL" to Color(0xFFF44336)
+                        )
+
+                        statusOptions.forEach { (value, label) ->
+                            val isSelected = status.equals(value, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (!readOnly) {
+                                        status = value
+                                        justSaved = false
+                                        vm.clearEvidenceError()
+                                    }
+                                },
+                                enabled = !readOnly,
+                                label = { Text(label) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = statusColors[value] ?: MaterialTheme.colorScheme.secondary,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
                     if (!readOnly) {
                         Text("Campo booleano - selecciona SÍ o NO arriba", style = MaterialTheme.typography.bodySmall)
                     }
@@ -450,10 +449,21 @@ private fun ItemCard(
                             onSelect = { selectedOption ->
                                 respText = selectedOption
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando se selecciona una opción
+                                status = "OK"
                             }
                         )
                     } else if (options.isNotEmpty() && readOnly) {
                         Text("Opción seleccionada: ${respText.ifBlank { "Ninguna" }}")
+                    }
+                    // Mostrar estado automático para no-BOOLEAN
+                    if (!readOnly) {
+                        val hasResponse = respText.isNotBlank()
+                        Text(
+                            text = if (hasResponse) "✓ Respondido" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
+                        )
                     }
                 }
                 
@@ -468,10 +478,21 @@ private fun ItemCard(
                             onSelectionChange = { newSelection ->
                                 respText = newSelection.joinToString(",")
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando se seleccionan opciones
+                                status = "OK"
                             }
                         )
                     } else if (options.isNotEmpty() && readOnly) {
                         Text("Opciones seleccionadas: ${respText.ifBlank { "Ninguna" }}")
+                    }
+                    // Mostrar estado automático para no-BOOLEAN
+                    if (!readOnly) {
+                        val hasResponse = respText.isNotBlank()
+                        Text(
+                            text = if (hasResponse) "✓ Respondido" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
+                        )
                     }
                 }
                 
@@ -489,7 +510,16 @@ private fun ItemCard(
                             onValueChange = { value ->
                                 numberStr = value.toString()
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando se califica
+                                status = "OK"
                             }
+                        )
+                        // Mostrar estado automático
+                        val hasResponse = numberStr.isNotBlank() && numberStr.toIntOrNull() != null
+                        Text(
+                            text = if (hasResponse) "✓ Calificado" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
                         Text("Calificación: ${numberStr.ifBlank { "No calificado" }}")
@@ -503,10 +533,21 @@ private fun ItemCard(
                             onValueChange = { input ->
                                 numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando se ingresa número válido
+                                if (input.isNotBlank() && input.toDoubleOrNull() != null) {
+                                    status = "OK"
+                                }
                             },
                             label = { Text("Valor numérico") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth()
+                        )
+                        // Mostrar estado automático
+                        val hasResponse = numberStr.isNotBlank() && numberStr.toDoubleOrNull() != null
+                        Text(
+                            text = if (hasResponse) "✓ Valor ingresado" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
                         Text("Valor: ${numberStr.ifBlank { "No especificado" }}")
@@ -522,7 +563,18 @@ private fun ItemCard(
                             onValueChange = { newText ->
                                 respText = newText
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando hay texto
+                                if (newText.isNotBlank()) {
+                                    status = "OK"
+                                }
                             }
+                        )
+                        // Mostrar estado automático
+                        val hasResponse = respText.isNotBlank()
+                        Text(
+                            text = if (hasResponse) "✓ Texto ingresado" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
                         Text("Texto: ${respText.ifBlank { "No especificado" }}")
@@ -536,7 +588,16 @@ private fun ItemCard(
                             onScan = { scannedCode ->
                                 // Actualizar el código escaneado
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando se escanea código
+                                status = "OK"
                             }
+                        )
+                        // Mostrar estado automático
+                        val hasResponse = !item.scannedBarcode.isNullOrBlank()
+                        Text(
+                            text = if (hasResponse) "✓ Código escaneado" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
                         Text("Código escaneado: ${item.scannedBarcode ?: "No escaneado"}")
@@ -546,43 +607,45 @@ private fun ItemCard(
                 "PHOTO", "MULTIPHOTO" -> {
                     // Las fotos ya se manejan en la sección de evidencia arriba
                     if (!readOnly) {
+                        // Mostrar estado automático basado en evidencia
+                        val hasPhotos = item.attachments?.isNotEmpty() == true
+                        Text(
+                            text = if (hasPhotos) "✓ Foto(s) tomada(s)" else "⚪ Sin fotos",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasPhotos) Color(0xFF4CAF50) else Color.Gray
+                        )
+                        if (hasPhotos) {
+                            status = "OK" // Auto-establecer cuando hay fotos
+                        }
+                    }
+                }
+                
+                else -> {
+                    // Campos genéricos para tipos no reconocidos - auto-estado basado en respuesta
+                    if (!readOnly) {
                         OutlinedTextField(
                             value = respText,
                             onValueChange = { 
                                 respText = it
                                 justSaved = false
+                                // Auto-establecer estado a OK cuando hay contenido
+                                if (it.isNotBlank()) {
+                                    status = "OK"
+                                }
                             },
                             label = { Text("Comentarios adicionales (opcional)") },
                             modifier = Modifier.fillMaxWidth()
                         )
+                        // Mostrar estado automático
+                        val hasResponse = respText.isNotBlank()
+                        Text(
+                            text = if (hasResponse) "✓ Completado" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
+                        )
                     } else if (respText.isNotBlank()) {
                         Text("Comentarios: $respText")
                     }
-                }
-                
-                else -> {
-                    // Campos genéricos para tipos no reconocidos
-                    OutlinedTextField(
-                        value = respText,
-                        onValueChange = { if (!readOnly) { respText = it; justSaved = false } },
-                        label = { Text("Texto (opcional)") },
-                        enabled = !readOnly,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = numberStr,
-                        onValueChange = { input ->
-                            if (!readOnly) { 
-                                numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
-                                justSaved = false
-                            }
-                        },
-                        label = { Text("Número (opcional)") },
-                        enabled = !readOnly,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
 

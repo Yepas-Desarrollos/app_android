@@ -1,5 +1,6 @@
 package mx.checklist.ui.components.admin
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -17,6 +18,8 @@ fun AdminAccessButton(
 ) {
     // Verificar si el usuario es admin
     val isAdmin = AuthState.roleCode == "ADMIN"
+    
+    Log.d("AdminComponents", "🎯 AdminAccessButton - AuthState.roleCode: '${AuthState.roleCode}', isAdmin: $isAdmin")
     
     if (isAdmin) {
         FilledTonalButton(

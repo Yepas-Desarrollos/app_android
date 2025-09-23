@@ -1,24 +1,22 @@
 package mx.checklist
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import mx.checklist.data.Repo
 import mx.checklist.data.TokenStore
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
 import mx.checklist.ui.AppNavHost
-import mx.checklist.ui.navigation.NavRoutes
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.ui.vm.AdminViewModel
@@ -40,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     // Cargar token guardado desde TokenStore
                     tokenStore.tokenFlow.collect { savedToken ->
+                        Log.d("MainActivity", "🔑 TokenStore.tokenFlow: $savedToken")
                         if (savedToken != null) {
                             AuthState.token = savedToken
                             ApiClient.setToken(savedToken)
@@ -50,15 +49,23 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     // Cargar roleCode guardado desde TokenStore  
                     tokenStore.roleCodeFlow.collect { savedRole ->
+                        Log.d("MainActivity", "👤 TokenStore.roleCodeFlow: $savedRole")
                         AuthState.roleCode = savedRole
+                        Log.d("MainActivity", "👤 AuthState.roleCode actualizado a: ${AuthState.roleCode}")
                     }
                 }
 
-                AppNavHost(
-                    authVM = authVM,
-                    runsVM = runsVM,
-                    adminVM = adminVM
-                )
+                // Observar el estado de auth para recomposición
+                val authState by authVM.state.collectAsStateWithLifecycle()
+
+                // Usar key() para forzar recomposición cuando cambie roleCode
+                key(authState.authenticated?.roleCode) {
+                    AppNavHost(
+                        authVM = authVM,
+                        runsVM = runsVM,
+                        adminVM = adminVM
+                    )
+                }
             }
         }
     }

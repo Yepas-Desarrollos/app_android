@@ -50,7 +50,6 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
 
     fun createTemplate(
         name: String,
-        description: String?,
         items: List<CreateItemTemplateDto> = emptyList(),
         onSuccess: (Long) -> Unit
     ) {
@@ -58,7 +57,6 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
             safe("Creando template...") {
                 val request = CreateTemplateDto(
                     name = name,
-                    description = description,
                     items = items
                 )
                 val result = repo.adminCreateTemplate(request)
@@ -72,17 +70,18 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
     fun updateTemplate(
         templateId: Long,
         name: String?,
-        description: String?,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
             safe("Actualizando template...") {
                 val request = UpdateTemplateDto(
-                    name = name,
-                    description = description
+                    name = name
                 )
-                val result = repo.adminUpdateTemplate(templateId, request)
-                _currentTemplate.value = result
+                // Actualizar en el backend
+                repo.adminUpdateTemplate(templateId, request)
+                
+                // Recargar el template desde el backend para obtener datos actualizados
+                _currentTemplate.value = repo.adminGetTemplate(templateId)
                 _operationSuccess.value = "Template actualizado exitosamente"
                 loadTemplates() // Refrescar lista
                 onSuccess()
@@ -177,13 +176,60 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
         }
     }
 
+    fun updateTemplateStatus(templateId: Long, isActive: Boolean, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            safe("${if (isActive) "Activando" else "Desactivando"} template...") {
+                val result = repo.adminUpdateTemplateStatus(templateId, isActive)
+                _operationSuccess.value = result.message
+                loadTemplates() // Refrescar lista
+                onSuccess()
+            }
+        }
+    }
+
+    fun forceDeleteRun(runId: Long, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            safe("Eliminando corrida enviada...") {
+                val result = repo.adminForceDeleteRun(runId)
+                if (result.success) {
+                    _operationSuccess.value = result.message
+                    onSuccess()
+                } else {
+                    _error.value = "Error al eliminar corrida"
+                }
+            }
+        }
+    }
+
     private suspend inline fun safe(loadingMessage: String, crossinline block: suspend () -> Unit) {
         try {
             _error.value = null
             _loading.value = true
             block()
         } catch (t: Throwable) {
-            val errorMsg = "Error: ${t.message}"
+            val errorMsg = when (t) {
+                is retrofit2.HttpException -> {
+                    // Extraer mensaje del servidor para errores HTTP
+                    try {
+                        val errorBody = t.response()?.errorBody()?.string()
+                        if (errorBody?.contains("\"message\"") == true) {
+                            // Parsear JSON simple para extraer el mensaje
+                            val messageStart = errorBody.indexOf("\"message\":\"") + 11
+                            val messageEnd = errorBody.indexOf("\"", messageStart)
+                            if (messageStart > 10 && messageEnd > messageStart) {
+                                errorBody.substring(messageStart, messageEnd)
+                            } else {
+                                "Error del servidor: ${t.message}"
+                            }
+                        } else {
+                            "Error del servidor: ${t.message}"
+                        }
+                    } catch (e: Exception) {
+                        "Error del servidor: ${t.message}"
+                    }
+                }
+                else -> "Error: ${t.message}"
+            }
             Log.e("AdminViewModel", errorMsg, t)
             _error.value = errorMsg
             t.printStackTrace()

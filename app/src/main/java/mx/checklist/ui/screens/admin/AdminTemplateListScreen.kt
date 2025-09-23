@@ -124,7 +124,10 @@ fun AdminTemplateListScreen(
                     template = template,
                     onEdit = { onEditTemplate(template.id) },
                     onDelete = { showDeleteDialog = template },
-                    onView = { onViewTemplate(template.id) }
+                    onView = { onViewTemplate(template.id) },
+                    onStatusChange = { isActive ->
+                        vm.updateTemplateStatus(template.id, isActive) {}
+                    }
                 )
             }
         }
@@ -180,7 +183,8 @@ private fun TemplateCard(
     template: AdminTemplateDto,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onView: () -> Unit
+    onView: () -> Unit,
+    onStatusChange: (Boolean) -> Unit
 ) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -196,21 +200,30 @@ private fun TemplateCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = template.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    
-                    template.description?.let { desc ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
-                            text = desc,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = template.name,
+                            style = MaterialTheme.typography.titleMedium,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
+                        
+                        // Indicador de status
+                        Badge(
+                            containerColor = if (template.isActive) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.outline
+                        ) {
+                            Text(
+                                text = if (template.isActive) "ACTIVO" else "INACTIVO",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                 }
                 
@@ -229,6 +242,31 @@ private fun TemplateCard(
                         )
                     }
                 }
+            }
+            
+            // Switch para activar/desactivar template
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (template.isActive) "Template Activo" else "Template Inactivo",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (template.isActive) 
+                        MaterialTheme.colorScheme.primary 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Switch(
+                    checked = template.isActive,
+                    onCheckedChange = onStatusChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
             }
             
             Row(

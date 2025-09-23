@@ -4,7 +4,6 @@ package mx.checklist.data.api.dto
 data class CreateTemplateRes(
     val id: Long,
     val name: String,
-    val description: String? = null,
     val createdAt: String? = null
 )
 
@@ -25,4 +24,24 @@ data class CreateItemTemplateRes(
 data class DeleteRes(
     val success: Boolean,
     val message: String? = null
+)
+
+// Para actualizar status de template
+data class UpdateTemplateStatusDto(
+    val isActive: Boolean
+)
+
+// Respuesta al actualizar status de template
+data class TemplateStatusRes(
+    val id: Long,
+    val name: String,
+    val isActive: Boolean,
+    val message: String
+)
+
+// Respuesta al eliminar run por fuerza
+data class ForceDeleteRunRes(
+    val success: Boolean,
+    val message: String,
+    val deletedItems: Int
 )

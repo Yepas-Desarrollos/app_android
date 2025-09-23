@@ -13,8 +13,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.ui.components.admin.AdminAccessButton
+import mx.checklist.data.auth.AuthState
 
 @Composable
 fun HomeScreen(
@@ -33,21 +36,24 @@ fun HomeScreen(
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onNuevaCorrida, modifier = Modifier.weight(1f)) {
-                Text("Nueva corrida")
+                Text("Realizar checklist")
             }
             Button(onClick = onOpenHistory, modifier = Modifier.weight(1f)) {
                 Text("Historial")
             }
         }
 
-        // Botón de acceso admin si está disponible
+        // Log de diagnóstico en Home
+        Log.d("HomeScreen", "🏠 Home - AuthState.roleCode: '${AuthState.roleCode}'")
+        Log.d("HomeScreen", "🏠 Home - onAdminAccess: ${if (onAdminAccess != null) "NOT NULL" else "NULL"}")
+
+        // Botón de acceso admin con verificación automática de rol
         onAdminAccess?.let { adminCallback ->
-            Button(
-                onClick = adminCallback,
+            Log.d("HomeScreen", "🏠 Home - Mostrando AdminAccessButton")
+            AdminAccessButton(
+                onAdminAccess = adminCallback,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Administración")
-            }
+            )
         }
 
         // Botón de logout si se proporciona authVM

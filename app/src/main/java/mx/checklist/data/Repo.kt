@@ -19,8 +19,18 @@ class Repo(
 
     suspend fun login(req: LoginReq): Authenticated {
         val res = api.login(req)
+        
+        Log.d("Repo", "🌐 Backend response - access_token: ${res.access_token.take(20)}...")
+        Log.d("Repo", "🌐 Backend response - roleCode: ${res.roleCode}")
+        
         val auth = Authenticated(token = res.access_token, roleCode = res.roleCode)
+        
+        Log.d("Repo", "📦 Authenticated object - token: ${auth.token?.take(20)}...")
+        Log.d("Repo", "📦 Authenticated object - roleCode: ${auth.roleCode}")
+        
         tokenStore.save(auth)
+        Log.d("Repo", "💾 TokenStore.save() llamado con auth")
+        
         ApiClient.setToken(res.access_token)
 
         // Limpia cachés por usuario
@@ -45,7 +55,10 @@ class Repo(
         // Si ya hay caché, retornarlo
         cachedTemplates?.let { return it }
 
-        val list = api.templates()
+        // Usar endpoint paginado y extraer solo los datos
+        val response = api.templatesPaginated(page = 1, limit = 100)
+        val list = response.data
+        
         // No aplicar filtros por scope aquí. El backend ya filtra por rol.
         cachedTemplates = list
 
@@ -53,6 +66,11 @@ class Repo(
         Log.d("TEMPLATES", "count=${list.size} names=${list.joinToString { it.name }}")
 
         return list
+    }
+
+    // Templates paginados
+    suspend fun templatesPaginated(page: Int = 1, limit: Int = 20): PaginatedTemplatesResponse {
+        return api.templatesPaginated(page, limit)
     }
 
     suspend fun createRun(storeCode: String, templateId: Long): RunRes =
@@ -73,12 +91,26 @@ class Repo(
     suspend fun runInfo(runId: Long): RunInfoDto = api.runInfo(runId)
 
     // Borradores / Historial
-    suspend fun pendingRuns(limit: Int? = 20, all: Boolean? = false, storeCode: String? = null): List<RunSummaryDto> =
-        api.pendingRuns(limit, all, storeCode)
+    suspend fun pendingRuns(limit: Int? = 20, all: Boolean? = false, storeCode: String? = null): List<RunSummaryDto> {
+        // Usar endpoint paginado y extraer solo los datos
+        val response = api.pendingRunsPaginated(page = 1, limit = limit ?: 20)
+        return response.data
+    }
+    
+    // Borradores paginados
+    suspend fun pendingRunsPaginated(page: Int = 1, limit: Int = 20): PaginatedRunsResponse =
+        api.pendingRunsPaginated(page, limit)
 
-    suspend fun historyRuns(limit: Int? = 20, storeCode: String? = null): List<RunSummaryDto> =
-        api.historyRuns(limit, storeCode)
-
+    suspend fun historyRuns(limit: Int? = 20, storeCode: String? = null): List<RunSummaryDto> {
+        // Usar endpoint paginado y extraer solo los datos
+        val response = api.historyRunsPaginated(page = 1, limit = limit ?: 20)
+        return response.data
+    }
+    
+    // Historial paginado
+    suspend fun historyRunsPaginated(page: Int = 1, limit: Int = 20): PaginatedRunsResponse =
+        api.historyRunsPaginated(page, limit)
+        
     suspend fun deleteRun(runId: Long) { api.deleteRun(runId) }
 
     // === Evidencias ===
@@ -108,6 +140,11 @@ class Repo(
         return api.adminGetTemplates()
     }
 
+    // Admin templates paginados
+    suspend fun adminGetTemplatesPaginated(page: Int = 1, limit: Int = 20): PaginatedAdminTemplatesResponse {
+        return api.adminGetTemplatesPaginated(page, limit)
+    }
+
     suspend fun adminCreateTemplate(request: CreateTemplateDto): CreateTemplateRes {
         // Limpiar caché de templates normales
         cachedTemplates = null
@@ -118,10 +155,10 @@ class Repo(
         return api.adminGetTemplate(templateId)
     }
 
-    suspend fun adminUpdateTemplate(templateId: Long, request: UpdateTemplateDto): AdminTemplateDto {
+    suspend fun adminUpdateTemplate(templateId: Long, request: UpdateTemplateDto) {
         // Limpiar caché de templates normales
         cachedTemplates = null
-        return api.adminUpdateTemplate(templateId, request)
+        api.adminUpdateTemplate(templateId, request)
     }
 
     suspend fun adminDeleteTemplate(templateId: Long): DeleteRes {
@@ -134,11 +171,21 @@ class Repo(
         return api.adminCreateItem(templateId, request)
     }
 
-    suspend fun adminUpdateItem(templateId: Long, itemId: Long, request: UpdateItemTemplateDto): ItemTemplateDto {
-        return api.adminUpdateItem(templateId, itemId, request)
+    suspend fun adminUpdateItem(templateId: Long, itemId: Long, request: UpdateItemTemplateDto) {
+        api.adminUpdateItem(templateId, itemId, request)
     }
 
     suspend fun adminDeleteItem(templateId: Long, itemId: Long): DeleteRes {
         return api.adminDeleteItem(templateId, itemId)
+    }
+
+    suspend fun adminUpdateTemplateStatus(templateId: Long, isActive: Boolean): TemplateStatusRes {
+        // Limpiar caché de templates normales
+        cachedTemplates = null
+        return api.adminUpdateTemplateStatus(templateId, UpdateTemplateStatusDto(isActive))
+    }
+
+    suspend fun adminForceDeleteRun(runId: Long): ForceDeleteRunRes {
+        return api.adminForceDeleteRun(runId)
     }
 }

@@ -14,6 +14,13 @@ interface Api {
     @GET("templates")
     suspend fun templates(): List<TemplateDto>
 
+    // Templates paginados
+    @GET("templates")
+    suspend fun templatesPaginated(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): PaginatedTemplatesResponse
+
     @POST("runs")
     suspend fun createRun(@Body body: CreateRunReq): RunRes
 
@@ -38,12 +45,26 @@ interface Api {
         @Query("storeCode") storeCode: String? = null
     ): List<RunSummaryDto>
 
+    // Borradores paginados
+    @GET("runs/pending")
+    suspend fun pendingRunsPaginated(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): PaginatedRunsResponse
+
     // Historial (enviadas)
     @GET("runs/history")
     suspend fun historyRuns(
         @Query("limit") limit: Int? = null,
         @Query("storeCode") storeCode: String? = null
     ): List<RunSummaryDto>
+
+    // Historial paginado
+    @GET("runs/history")
+    suspend fun historyRunsPaginated(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): PaginatedRunsResponse
 
     // Eliminar borrador
     @DELETE("runs/{id}")
@@ -71,6 +92,13 @@ interface Api {
     // Templates CRUD
     @GET("admin/templates")
     suspend fun adminGetTemplates(): List<AdminTemplateDto>
+
+    // Admin templates paginados
+    @GET("admin/templates")
+    suspend fun adminGetTemplatesPaginated(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): PaginatedAdminTemplatesResponse
 
     @POST("admin/templates")
     suspend fun adminCreateTemplate(@Body body: CreateTemplateDto): CreateTemplateRes
@@ -106,4 +134,15 @@ interface Api {
         @Path("templateId") templateId: Long,
         @Path("id") itemId: Long
     ): DeleteRes
+
+    // Template status management
+    @PATCH("admin/templates/{id}/status")
+    suspend fun adminUpdateTemplateStatus(
+        @Path("id") templateId: Long,
+        @Body body: UpdateTemplateStatusDto
+    ): TemplateStatusRes
+
+    // Force delete submitted runs
+    @DELETE("admin/runs/{id}/force")
+    suspend fun adminForceDeleteRun(@Path("id") runId: Long): ForceDeleteRunRes
 }

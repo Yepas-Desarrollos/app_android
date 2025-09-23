@@ -41,7 +41,10 @@ fun TemplatesScreen(
     }
 
     // NO filtrar por scope - el backend ya filtra por rol
-    val templates = allTemplates.sortedBy { it.name.lowercase(Locale.getDefault()) }
+    // Pero SÍ filtrar por isActive - solo mostrar templates activos a usuarios
+    val templates = allTemplates
+        .filter { it.isActive }
+        .sortedBy { it.name.lowercase(Locale.getDefault()) }
 
     // Sugerencias por día (Calendar = minSdk 24 OK)
     val day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
@@ -170,7 +173,7 @@ private fun TemplateCard(
                 enabled = !loading,
                 onClick = onCreate,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Crear corrida") }
+            ) { Text("Iniciar checklist") }
         }
     }
 }

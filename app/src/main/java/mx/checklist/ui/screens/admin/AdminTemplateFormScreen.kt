@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -34,7 +34,6 @@ fun AdminTemplateFormScreen(
 ) {
     // Estados locales del formulario
     var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf<ItemTemplateDto?>(null) }
 
     // Estados del ViewModel
@@ -57,7 +56,6 @@ fun AdminTemplateFormScreen(
     LaunchedEffect(currentTemplate) {
         currentTemplate?.let { template ->
             name = template.name
-            description = template.description ?: ""
         }
     }
 
@@ -80,7 +78,7 @@ fun AdminTemplateFormScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
             }
             
             Text(
@@ -129,15 +127,6 @@ fun AdminTemplateFormScreen(
                     isError = name.isBlank()
                 )
 
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Descripción (opcional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !loading,
-                    maxLines = 3
-                )
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -155,13 +144,11 @@ fun AdminTemplateFormScreen(
                             if (isEditing && templateId != null) {
                                 vm.updateTemplate(
                                     templateId = templateId,
-                                    name = name.takeIf { it.isNotBlank() },
-                                    description = description.takeIf { it.isNotBlank() }
+                                    name = name.takeIf { it.isNotBlank() }
                                 ) { /* onSuccess handled by LaunchedEffect */ }
                             } else {
                                 vm.createTemplate(
-                                    name = name,
-                                    description = description.takeIf { it.isNotBlank() }
+                                    name = name
                                 ) { /* onSuccess handled by LaunchedEffect */ }
                             }
                         },
