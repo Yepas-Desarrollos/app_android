@@ -10,8 +10,10 @@ object NavRoutes {
     
     // Admin routes
     const val ADMIN_TEMPLATES = "admin/templates"
+    const val ADMIN_TEMPLATES_ADMIN = "admin/templates-admin"
     const val ADMIN_TEMPLATE_FORM = "admin/templates/form?templateId={templateId}"
     const val ADMIN_ITEM_FORM = "admin/templates/{templateId}/items/form?itemId={itemId}"
+    const val ADMIN_ASSIGNMENTS = "admin/assignments"
 
     fun templates(storeCode: String) = "templates/$storeCode"
     fun run(runId: Long) = "run/$runId"

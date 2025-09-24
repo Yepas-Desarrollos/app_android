@@ -145,4 +145,26 @@ interface Api {
     // Force delete submitted runs
     @DELETE("admin/runs/{id}/force")
     suspend fun adminForceDeleteRun(@Path("id") runId: Long): ForceDeleteRunRes
+
+    // === ASSIGNMENT ENDPOINTS ===
+    
+    @GET("admin/assignments/assignable-users")
+    suspend fun getAssignableUsers(): List<AssignableUserDto>
+    
+    @GET("admin/assignments/summary")
+    suspend fun getAssignmentSummary(
+        @Query("userId") userId: Long? = null,
+        @Query("sector") sector: Int? = null,
+        @Query("page") page: Int? = null,
+        @Query("pageSize") pageSize: Int? = null
+    ): AssignmentSummaryResponse
+    
+    @POST("admin/assignments/sectors")
+    suspend fun assignUserToSectors(@Body body: AssignUserToSectorsRequest): AssignmentResponse
+    
+    @GET("admin/assignments/user/{userId}/stores")
+    suspend fun getUserAssignedStores(@Path("userId") userId: String): List<AssignedStoreDto>
+
+    @GET("admin/assignments/sectors")
+    suspend fun getAssignmentSectors(): List<Int>
 }

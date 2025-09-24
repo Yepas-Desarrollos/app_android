@@ -20,6 +20,7 @@ import mx.checklist.ui.AppNavHost
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.ui.vm.AssignmentViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
                 val authVM = viewModel<AuthViewModel>(factory = SimpleFactory { AuthViewModel(repo) })
                 val runsVM = viewModel<RunsViewModel>(factory = SimpleFactory { RunsViewModel(repo) })
                 val adminVM = viewModel<AdminViewModel>(factory = SimpleFactory { AdminViewModel(repo) })
+                val assignmentVM = viewModel<AssignmentViewModel>(factory = SimpleFactory { AssignmentViewModel(repo) })
 
                 // Inicializar AuthState si hay token guardado
                 LaunchedEffect(Unit) {
@@ -63,7 +65,8 @@ class MainActivity : ComponentActivity() {
                     AppNavHost(
                         authVM = authVM,
                         runsVM = runsVM,
-                        adminVM = adminVM
+                        adminVM = adminVM,
+                        assignmentVM = assignmentVM
                     )
                 }
             }

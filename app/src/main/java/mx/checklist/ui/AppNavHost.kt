@@ -25,12 +25,15 @@ import mx.checklist.ui.screens.TemplatesScreen
 import mx.checklist.ui.screens.SimpleOptimizedHistoryScreen
 import mx.checklist.ui.screens.SimpleOptimizedTemplatesScreen
 import mx.checklist.ui.screens.SimpleOptimizedAdminScreen
+import mx.checklist.ui.screens.TemplatesAdminScreen
+import mx.checklist.ui.screens.AssignmentScreen
 import mx.checklist.ui.screens.admin.AdminTemplateListScreen
 import mx.checklist.ui.screens.admin.AdminTemplateFormScreen
 import mx.checklist.ui.screens.admin.AdminItemFormScreen
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.ui.vm.AssignmentViewModel
 import mx.checklist.ui.navigation.NavRoutes
 import mx.checklist.config.AppConfig.ENABLE_PAGINATION_OPTIMIZATIONS
 
@@ -39,6 +42,7 @@ fun AppNavHost(
     authVM: AuthViewModel,
     runsVM: RunsViewModel,
     adminVM: AdminViewModel,
+    assignmentVM: AssignmentViewModel,
     modifier: Modifier = Modifier
 ) {
     val nav = rememberNavController()
@@ -46,7 +50,7 @@ fun AppNavHost(
     // SOLUCIÓN: Usar el estado reactivo del AuthViewModel
     val authState by authVM.state.collectAsStateWithLifecycle()
     val currentRoleCode = authState.authenticated?.roleCode
-    val isAdmin = currentRoleCode == "ADMIN"
+    val isAdmin = currentRoleCode in listOf("ADMIN", "MGR_PREV", "MGR_OPS")
     
     // Determinar destino inicial basado en autenticación
     val startDestination = if (authState.authenticated != null) {
@@ -221,6 +225,12 @@ fun AppNavHost(
                     },
                     onViewTemplate = { templateId: Long ->
                         nav.navigate(NavRoutes.adminTemplateForm(templateId))
+                    },
+                    onAssignments = {
+                        nav.navigate(NavRoutes.ADMIN_ASSIGNMENTS)
+                    },
+                    onTemplatesAdmin = {
+                        nav.navigate(NavRoutes.ADMIN_TEMPLATES_ADMIN)
                     }
                 )
             } else {
@@ -315,6 +325,49 @@ fun AppNavHost(
                     adminVM.loadTemplates()
                     nav.popBackStack() 
                 }
+            )
+        }
+
+        // Pantalla de asignaciones - Solo para administradores
+        composable(NavRoutes.ADMIN_ASSIGNMENTS) {
+            if (!isAdmin) {
+                // Redirigir a HOME si no es admin; limpiar backstack hasta esta ruta
+                nav.navigate(NavRoutes.HOME) {
+                    popUpTo(NavRoutes.ADMIN_ASSIGNMENTS)
+                    launchSingleTop = true
+                }
+                return@composable
+            }
+            
+            AssignmentScreen(
+                assignmentVM = assignmentVM,
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // Pantalla de Templates Admin - Solo para administradores
+        composable(NavRoutes.ADMIN_TEMPLATES_ADMIN) {
+            if (!isAdmin) {
+                // Redirigir a HOME si no es admin; limpiar backstack hasta esta ruta
+                nav.navigate(NavRoutes.HOME) {
+                    popUpTo(NavRoutes.ADMIN_TEMPLATES_ADMIN)
+                    launchSingleTop = true
+                }
+                return@composable
+            }
+            
+            TemplatesAdminScreen(
+                adminVM = adminVM,
+                onCreateTemplate = {
+                    nav.navigate(NavRoutes.adminTemplateForm())
+                },
+                onEditTemplate = { templateId: Long ->
+                    nav.navigate(NavRoutes.adminTemplateForm(templateId))
+                },
+                onViewTemplate = { templateId: Long ->
+                    nav.navigate(NavRoutes.adminTemplateForm(templateId))
+                },
+                onBack = { nav.popBackStack() }
             )
         }
     }

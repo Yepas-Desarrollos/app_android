@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.dto.RunSummaryDto
 import mx.checklist.ui.vm.AdminViewModel
 import mx.checklist.ui.vm.RunsViewModel
@@ -33,6 +34,11 @@ fun SimpleOptimizedHistoryScreen(
     
     // Verificar si el usuario es admin
     val isAdmin = adminVM != null
+    
+    // Verificar si puede borrar corridas enviadas (solo ADMIN real)
+    val canDeleteSubmitted = remember(isAdmin) {
+        AuthState.roleCode == "ADMIN"
+    }
     
     // Estados del ViewModel
     val drafts by runsVM.pendingRunsFlow().collectAsStateWithLifecycle()
@@ -108,6 +114,7 @@ fun SimpleOptimizedHistoryScreen(
                 submitted = submitted,
                 loading = loading,
                 isAdmin = isAdmin,
+                canDeleteSubmitted = canDeleteSubmitted,
                 onOpenRun = onOpenRun,
                 onDeleteRun = { run -> showDeleteDialog = run }
             )
@@ -181,6 +188,7 @@ private fun DraftsContent(
                     run = run,
                     isDraft = true,
                     onOpen = { onOpenRun(run.id, run.storeCode ?: "", run.templateName) },
+                    // Borradores: managers y admin pueden borrar
                     onDelete = if (isAdmin) { { onDeleteRun(run) } } else null
                 )
             }
@@ -199,6 +207,7 @@ private fun SubmittedContent(
     submitted: List<RunSummaryDto>,
     loading: Boolean,
     isAdmin: Boolean,
+    canDeleteSubmitted: Boolean,
     onOpenRun: (Long, String, String?) -> Unit,
     onDeleteRun: (RunSummaryDto) -> Unit
 ) {
@@ -219,7 +228,8 @@ private fun SubmittedContent(
                     run = run,
                     isDraft = false,
                     onOpen = { onOpenRun(run.id, run.storeCode ?: "", run.templateName) },
-                    onDelete = if (isAdmin) { { onDeleteRun(run) } } else null
+                    // Enviadas: solo ADMIN real puede borrar
+                    onDelete = if (canDeleteSubmitted) { { onDeleteRun(run) } } else null
                 )
             }
             
@@ -290,7 +300,7 @@ private fun RunCard(
                     
                     // Mostrar botón de eliminar solo para admins
                     if (onDelete != null) {
-                        IconButton(onClick = onDelete) {
+                        IconButton(onClick = { onDelete.invoke() }) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Eliminar",

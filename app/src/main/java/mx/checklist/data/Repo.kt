@@ -20,12 +20,21 @@ class Repo(
     suspend fun login(req: LoginReq): Authenticated {
         val res = api.login(req)
         
-        Log.d("Repo", "🌐 Backend response - access_token: ${res.access_token.take(20)}...")
+        Log.d("Repo", "🌐 Backend response - access_token: ${res.access_token?.take(20)}...")
         Log.d("Repo", "🌐 Backend response - roleCode: ${res.roleCode}")
         
-        val auth = Authenticated(token = res.access_token, roleCode = res.roleCode)
+        // Validar que tenemos los datos requeridos
+        val token = res.access_token ?: throw IllegalStateException("Backend no devolvió access_token")
+        val roleCode = res.roleCode ?: throw IllegalStateException("Backend no devolvió roleCode")
         
-        Log.d("Repo", "📦 Authenticated object - token: ${auth.token?.take(20)}...")
+        // Crear objeto Authenticated con información básica por ahora
+        val auth = Authenticated(
+            token = token, 
+            roleCode = roleCode
+            // TODO: Agregar userId, email, fullName cuando el backend los devuelva
+        )
+        
+        Log.d("Repo", "📦 Authenticated object - token: ${auth.token.take(20)}...")
         Log.d("Repo", "📦 Authenticated object - roleCode: ${auth.roleCode}")
         
         tokenStore.save(auth)
@@ -187,5 +196,47 @@ class Repo(
 
     suspend fun adminForceDeleteRun(runId: Long): ForceDeleteRunRes {
         return api.adminForceDeleteRun(runId)
+    }
+
+    // === ASSIGNMENT METHODS ===
+    
+    /**
+     * Obtener usuarios que pueden ser asignados (AUDITOR/SUPERVISOR)
+     */
+    suspend fun getAssignableUsers(): List<AssignableUserDto> {
+        return api.getAssignableUsers()
+    }
+    
+    /**
+     * Obtener resumen de asignaciones por área
+     */
+    suspend fun getAssignmentSummary(): List<AssignmentSummaryDto> {
+    val response = api.getAssignmentSummary()
+        // TODO: usar response.meta para paginación futura
+        return response.data
+    }
+    
+    /**
+     * Asignar usuario a sectores específicos
+     */
+    suspend fun assignUserToSectors(userId: Long, sectors: List<Int>): AssignmentResponse {
+        return api.assignUserToSectors(
+            AssignUserToSectorsRequest(
+                userId = userId.toString(),
+                sectors = sectors
+            )
+        )
+    }
+    
+    /**
+     * Obtener tiendas asignadas a un usuario
+     */
+    suspend fun getUserAssignedStores(userId: Long): List<AssignedStoreDto> {
+        return api.getUserAssignedStores(userId.toString())
+    }
+
+    /** Obtener sectores disponibles */
+    suspend fun getAssignmentSectors(): List<Int> {
+        return api.getAssignmentSectors()
     }
 }

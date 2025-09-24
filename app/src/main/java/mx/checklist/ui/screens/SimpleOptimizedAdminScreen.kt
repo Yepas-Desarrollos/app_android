@@ -7,11 +7,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.AdminTemplateDto
@@ -28,10 +31,10 @@ fun SimpleOptimizedAdminScreen(
     onCreateTemplate: () -> Unit = { },
     onEditTemplate: (Long) -> Unit = { },
     onViewTemplate: (Long) -> Unit = { },
+    onAssignments: () -> Unit = { },
+    onTemplatesAdmin: () -> Unit = { },
     onBack: () -> Unit = { }
 ) {
-    var showDeleteDialog by remember { mutableStateOf<AdminTemplateDto?>(null) }
-    
     // Estados del ViewModel
     val templates by adminVM.templates.collectAsStateWithLifecycle()
     val loading by adminVM.loading.collectAsStateWithLifecycle()
@@ -67,216 +70,83 @@ fun SimpleOptimizedAdminScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header con botones de refresh y crear
+        // Header principal
+        Text(
+            text = "Panel de Administración",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        // Botones principales de administración
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Templates Admin",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Botón de refresh
-                IconButton(
-                    onClick = {
-                        adminVM.loadTemplates()
-                    }
-                ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Refrescar",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                // Botón de crear
-                FloatingActionButton(
-                    onClick = onCreateTemplate,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    if (loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Icon(Icons.Default.Add, contentDescription = "Crear Template")
-                    }
-                }
-            }
-        }
-        
-        // Estado de carga
-        if (loading) {
-            Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-        
-        // Error
-        error?.let { errorMsg ->
+            // Botón Panel de Asignaciones
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             ) {
-                Text(
-                    text = "Error: $errorMsg",
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                Button(
+                    onClick = onAssignments,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "Asignaciones",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Panel de\nAsignaciones", 
+                             style = MaterialTheme.typography.labelMedium,
+                             textAlign = TextAlign.Center)
+                    }
+                }
+            }
+            
+            // Botón Templates Admin
+            Card(
+                modifier = Modifier.weight(1f),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
+            ) {
+                Button(
+                    onClick = onTemplatesAdmin,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Templates",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Templates\nAdmin", 
+                             style = MaterialTheme.typography.labelMedium,
+                             textAlign = TextAlign.Center)
+                    }
+                }
             }
         }
         
-        // Lista de templates REAL
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(templates, key = { it.id }) { template ->
-                TemplateCard(
-                    template = template,
-                    onEdit = { onEditTemplate(template.id) },
-                    onDelete = { showDeleteDialog = template },
-                    onView = { onViewTemplate(template.id) },
-                    onStatusChange = { isActive -> 
-                        adminVM.updateTemplateStatus(template.id, isActive) {
-                            // Template status updated successfully
-                            // Limpiar cache de templates para que usuarios vean cambios inmediatamente
-                            runsVM.clearCache()
-                        }
-                    }
-                )
-            }
-            
-            if (templates.isEmpty() && !loading) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No hay templates creados\nToca + para crear uno nuevo",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Dialog de confirmación para borrar
-    showDeleteDialog?.let { template ->
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Eliminar Template") },
-            text = { Text("¿Estás seguro de que quieres eliminar '${template.name}'?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        adminVM.deleteTemplate(template.id) {
-                            // Template eliminado exitosamente
-                            // Limpiar cache de templates para refrescar lista de usuarios
-                            runsVM.clearCache()
-                        }
-                        showDeleteDialog = null
-                    }
-                ) {
-                    Text("Eliminar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = null }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-fun TemplateCard(
-    template: AdminTemplateDto,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onView: () -> Unit,
-    onStatusChange: (Boolean) -> Unit = { }
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = template.name,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Items: ${template.items?.size ?: 0}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                
-                Row {
-                    IconButton(onClick = onView) {
-                        Icon(Icons.Default.Edit, contentDescription = "Ver/Editar")
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            Icons.Default.Delete, 
-                            contentDescription = "Eliminar",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-            
-            // Switch para activar/desactivar template
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (template.isActive) "Template Activo" else "Template Inactivo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (template.isActive) 
-                        MaterialTheme.colorScheme.primary 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Switch(
-                    checked = template.isActive,
-                    onCheckedChange = onStatusChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                )
-            }
-        }
+        // (Se removió la tarjeta "Estado del Sistema" a solicitud del usuario)
     }
 }

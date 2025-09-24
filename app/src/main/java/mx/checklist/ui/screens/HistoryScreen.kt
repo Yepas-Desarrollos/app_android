@@ -235,7 +235,20 @@ fun HistoryCard(
             Text("Enviado: $updatedHuman", style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(4.dp))
 
-            if (isAdmin && onDelete != null) {
+            // Solo mostrar botón borrar según permisos específicos
+            val canDelete = remember(r.status, isAdmin, onDelete) {
+                when {
+                    r.status == "DRAFT" -> isAdmin && onDelete != null // Borradores: cualquier admin/manager
+                    r.status == "SUBMITTED" -> {
+                        // Enviadas: solo ADMIN real
+                        val isRealAdmin = AuthState.roleCode == "ADMIN"
+                        isRealAdmin && onDelete != null
+                    }
+                    else -> false
+                }
+            }
+            
+            if (canDelete) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         enabled = !loading,
@@ -246,7 +259,7 @@ fun HistoryCard(
                     }
                     OutlinedButton(
                         enabled = !loading,
-                        onClick = onDelete,
+                        onClick = { onDelete?.invoke() },
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         )

@@ -16,12 +16,19 @@ fun AdminAccessButton(
     onAdminAccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Verificar si el usuario es admin
-    val isAdmin = AuthState.roleCode == "ADMIN"
+    // Verificar si el usuario tiene permisos de administración (ADMIN o MANAGER)
+    val isAdmin = AuthState.roleCode in listOf("ADMIN", "MGR_PREV", "MGR_OPS")
     
     Log.d("AdminComponents", "🎯 AdminAccessButton - AuthState.roleCode: '${AuthState.roleCode}', isAdmin: $isAdmin")
     
     if (isAdmin) {
+        val buttonText = when (AuthState.roleCode) {
+            "ADMIN" -> "Panel Administrador"
+            "MGR_PREV" -> "Panel Prevención"
+            "MGR_OPS" -> "Panel Operaciones"
+            else -> "Panel Admin"
+        }
+        
         FilledTonalButton(
             onClick = onAdminAccess,
             modifier = modifier,
@@ -31,10 +38,10 @@ fun AdminAccessButton(
         ) {
             Icon(
                 Icons.Default.Settings,
-                contentDescription = "Panel Admin"
+                contentDescription = buttonText
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Panel Admin")
+            Text(buttonText)
         }
     }
 }
@@ -43,18 +50,25 @@ fun AdminAccessButton(
 fun AdminOnlyContent(
     content: @Composable () -> Unit
 ) {
-    val isAdmin = AuthState.roleCode == "ADMIN"
+    val hasAdminPermissions = AuthState.roleCode in listOf("ADMIN", "MGR_PREV", "MGR_OPS")
     
-    if (isAdmin) {
+    if (hasAdminPermissions) {
         content()
     }
 }
 
 @Composable
 fun AdminBadge() {
-    val isAdmin = AuthState.roleCode == "ADMIN"
+    val hasAdminPermissions = AuthState.roleCode in listOf("ADMIN", "MGR_PREV", "MGR_OPS")
     
-    if (isAdmin) {
+    if (hasAdminPermissions) {
+        val badgeText = when (AuthState.roleCode) {
+            "ADMIN" -> "ADMIN"
+            "MGR_PREV" -> "PREV"
+            "MGR_OPS" -> "OPS"
+            else -> "ADM"
+        }
+        
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primary
@@ -73,7 +87,7 @@ fun AdminBadge() {
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "ADMIN",
+                    text = badgeText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
