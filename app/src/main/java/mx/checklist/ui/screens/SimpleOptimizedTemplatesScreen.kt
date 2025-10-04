@@ -1,10 +1,9 @@
 package mx.checklist.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,10 +52,14 @@ fun SimpleOptimizedTemplatesScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Templates — $storeCode",
+            text = "Selecciona un Checklist",
             style = MaterialTheme.typography.headlineSmall
         )
-        
+        Text(
+            text = "Tienda: $storeCode",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
         // Error
         error?.let { errorMsg ->
             Card(
@@ -90,8 +93,10 @@ fun SimpleOptimizedTemplatesScreen(
                 items(templates, key = { it.id }) { template ->
                     TemplateCard(
                         template = template,
-                        onStart = { 
+                        loading = loading,
+                        onStart = {
                             runsVM.createRun(storeCode, template.id) { runId ->
+                                // ✅ CORREGIDO: Pasar runId (devuelto por createRun) en lugar de templateId
                                 onRunCreated(runId, template.name)
                             }
                         }
@@ -108,7 +113,7 @@ fun SimpleOptimizedTemplatesScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No hay templates disponibles para esta tienda",
+                                    text = "No hay checklists disponibles para esta tienda",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -124,53 +129,47 @@ fun SimpleOptimizedTemplatesScreen(
 @Composable
 private fun TemplateCard(
     template: TemplateDto,
+    loading: Boolean,
     onStart: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !loading) { onStart() }
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = template.name,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Versión: ${template.version ?: 1}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    template.scope?.let { scope ->
-                        Text(
-                            text = "Scope: $scope",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    template.frequency?.let { freq ->
-                        Text(
-                            text = "Frecuencia: $freq",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                
-                IconButton(onClick = onStart) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = "Iniciar checklist",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+            Text(
+                text = template.name,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            val meta = listOfNotNull(
+                template.version?.let { "Versión: $it" },
+                template.scope?.takeIf { it.isNotBlank() }?.let { "Ámbito: $it" },
+                template.frequency?.takeIf { it.isNotBlank() }?.let { "Frecuencia: $it" }
+            ).joinToString("  •  ")
+
+            if (meta.isNotBlank()) {
+                Text(
+                    text = meta,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+
+            // Texto indicativo en lugar del botón play
+            Text(
+                text = if (loading) "Cargando..." else "Toca para iniciar →",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
+            )
         }
     }
 }

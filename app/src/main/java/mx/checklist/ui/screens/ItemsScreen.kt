@@ -101,15 +101,15 @@ fun ItemsScreen(
     ) {
         if (!shownTemplateName.isNullOrBlank()) {
             Text("Checklist: $shownTemplateName", style = MaterialTheme.typography.titleLarge)
-            Text("Corrida #$runId — Tienda $storeCode", style = MaterialTheme.typography.bodyMedium)
+            Text("ID #$runId — Tienda $storeCode", style = MaterialTheme.typography.bodyMedium)
         } else {
-            Text("Items de la Corrida $runId ($storeCode)", style = MaterialTheme.typography.headlineSmall)
+            Text("Checklist #$runId ($storeCode)", style = MaterialTheme.typography.headlineSmall)
         }
 
-        if (isReadOnly) Text("Corrida enviada (solo lectura)", color = MaterialTheme.colorScheme.primary)
+        if (isReadOnly) Text("Checklist enviado (solo lectura)", color = MaterialTheme.colorScheme.primary)
         if (error != null) Text("Error: $error", color = MaterialTheme.colorScheme.error)
 
-        Text("$answered / ${items.size} respondidos")
+        Text("$answered / ${items.size} items respondidos")
         // LinearProgressIndicator: evitar función deprecada
         LinearProgressIndicator(progress = { answered / total.toFloat() }, modifier = Modifier.fillMaxWidth())
 
@@ -228,7 +228,8 @@ private fun ItemCard(
     var status by remember(item.id) { mutableStateOf(item.responseStatus.orEmpty()) }
     var respText by remember(item.id) { mutableStateOf(item.responseText.orEmpty()) }
     var numberStr by remember(item.id) { mutableStateOf(item.responseNumber?.toString().orEmpty()) }
-    var justSaved by remember(item.id) { mutableStateOf(false) }
+    // ✅ CORREGIDO: Usar responseStatus en lugar de justSaved local
+    val isAlreadySaved = !item.responseStatus.isNullOrEmpty()
 
     LaunchedEffect(item.id, item.responseStatus, item.responseText, item.responseNumber) {
         status = item.responseStatus.orEmpty()
@@ -295,7 +296,35 @@ private fun ItemCard(
 
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(initialTitle, style = MaterialTheme.typography.titleMedium)
+            // ✅ NUEVO: Chip de estado visual prominente
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(initialTitle, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+
+                // Chip de estado
+                FilterChip(
+                    selected = isAlreadySaved,
+                    onClick = { /* No hace nada, solo visual */ },
+                    enabled = false,
+                    label = { 
+                        Text(
+                            if (isAlreadySaved) "✓ Guardado" else "⚪ Pendiente",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF4CAF50),
+                        selectedLabelColor = Color.White,
+                        disabledSelectedContainerColor = Color(0xFF4CAF50),
+                        disabledContainerColor = Color.Gray.copy(alpha = 0.3f),
+                        disabledLabelColor = Color.Gray
+                    )
+                )
+            }
+
             val meta = listOfNotNull(
                 initialCategory.takeIf { it.isNotBlank() },
                 initialSubcategory.takeIf { it.isNotBlank() }
@@ -421,7 +450,6 @@ private fun ItemCard(
                                 onClick = {
                                     if (!readOnly) {
                                         status = value
-                                        justSaved = false
                                         vm.clearEvidenceError()
                                     }
                                 },
@@ -448,7 +476,6 @@ private fun ItemCard(
                             selected = respText.takeIf { it.isNotBlank() },
                             onSelect = { selectedOption ->
                                 respText = selectedOption
-                                justSaved = false
                                 // Auto-establecer estado a OK cuando se selecciona una opción
                                 status = "OK"
                             }
@@ -477,7 +504,6 @@ private fun ItemCard(
                             selected = selectedOptions,
                             onSelectionChange = { newSelection ->
                                 respText = newSelection.joinToString(",")
-                                justSaved = false
                                 // Auto-establecer estado a OK cuando se seleccionan opciones
                                 status = "OK"
                             }
@@ -509,7 +535,6 @@ private fun ItemCard(
                             value = numberStr.toIntOrNull(),
                             onValueChange = { value ->
                                 numberStr = value.toString()
-                                justSaved = false
                                 // Auto-establecer estado a OK cuando se califica
                                 status = "OK"
                             }
@@ -532,7 +557,6 @@ private fun ItemCard(
                             value = numberStr,
                             onValueChange = { input ->
                                 numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
-                                justSaved = false
                                 // Auto-establecer estado a OK cuando se ingresa número válido
                                 if (input.isNotBlank() && input.toDoubleOrNull() != null) {
                                     status = "OK"
@@ -562,7 +586,6 @@ private fun ItemCard(
                             maxLength = maxLength,
                             onValueChange = { newText ->
                                 respText = newText
-                                justSaved = false
                                 // Auto-establecer estado a OK cuando hay texto
                                 if (newText.isNotBlank()) {
                                     status = "OK"
@@ -587,9 +610,6 @@ private fun ItemCard(
                             value = item.scannedBarcode,
                             onScan = { scannedCode ->
                                 // Actualizar el código escaneado
-                                justSaved = false
-                                // Auto-establecer estado a OK cuando se escanea código
-                                status = "OK"
                             }
                         )
                         // Mostrar estado automático
@@ -627,7 +647,6 @@ private fun ItemCard(
                             value = respText,
                             onValueChange = { 
                                 respText = it
-                                justSaved = false
                                 // Auto-establecer estado a OK cuando hay contenido
                                 if (it.isNotBlank()) {
                                     status = "OK"
@@ -654,14 +673,13 @@ private fun ItemCard(
                     val parsed = numberStr.toDoubleOrNull()
                     val isSaveEnabled = status.isNotBlank() && !loading && !isUploadingThisItem &&
                         (attachmentsForThisItem.size >= photosNeeded)
-                    val isSaved = justSaved && evidenceError == null && !loading && !isUploadingThisItem
+                    val isSaved = isAlreadySaved && evidenceError == null && !loading && !isUploadingThisItem
 
                     Button(
                         enabled = isSaveEnabled && !isSaved,
                         onClick = {
                             vm.clearEvidenceError()
                             onSave(status.trim(), respText.trim().ifBlank { null }, parsed)
-                            justSaved = true
                         },
                         colors = if (isSaved) ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)

@@ -1,5 +1,6 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">172.16.16.22</domain> <!-- ← mi IP -->
+        <domain includeSubdomains="true">172.16.16.22</domain> <!-- IP local -->
+        <domain includeSubdomains="true">3.132.216.201</domain> <!-- AWS -->
     </domain-config>
 </network-security-config>

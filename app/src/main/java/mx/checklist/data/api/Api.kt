@@ -2,6 +2,7 @@ package mx.checklist.data.api
 
 import mx.checklist.data.api.dto.*
 import okhttp3.MultipartBody
+import retrofit2.Response
 import retrofit2.http.*
 
 interface Api {
@@ -20,6 +21,12 @@ interface Api {
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20
     ): PaginatedTemplatesResponse
+
+    // NUEVO: Endpoint público para obtener estructura de template (para AUDITOR/SUPERVISOR)
+    // No requiere permisos de admin, solo JWT
+    // Filtra automáticamente por scope del usuario
+    @GET("templates/{id}/structure")
+    suspend fun getTemplateStructure(@Path("id") templateId: Long): AdminTemplateDto
 
     @POST("runs")
     suspend fun createRun(@Body body: CreateRunReq): RunRes
@@ -167,4 +174,74 @@ interface Api {
 
     @GET("admin/assignments/sectors")
     suspend fun getAssignmentSectors(): List<Int>
+
+    // === NUEVOS ENDPOINTS: Estructura de Checklist (Secciones & Items con porcentajes) ===
+    // Secciones
+    @GET("admin/checklist-sections/checklist/{checklistId}")
+    suspend fun getSections(@Path("checklistId") checklistId: Long): Response<List<SectionTemplateDto>>
+
+    @POST("admin/checklist-sections/checklist/{checklistId}")
+    suspend fun createSection(@Path("checklistId") checklistId: Long, @Body section: SectionTemplateCreateDto): Response<SectionTemplateDto>
+
+    @PATCH("admin/checklist-sections/{id}")
+    suspend fun updateSection(@Path("id") id: Long, @Body section: SectionTemplateUpdateDto): Response<SectionTemplateDto>
+
+    @DELETE("admin/checklist-sections/{id}")
+    suspend fun deleteSection(@Path("id") id: Long): Response<Unit>
+
+    @PATCH("admin/checklist-sections/checklist/{checklistId}/update-percentages")
+    suspend fun updateSectionPercentages(
+        @Path("checklistId") checklistId: Long,
+        @Body payload: SectionPercentagesPayload
+    ): Response<List<SectionTemplateDto>>
+
+    // Endpoint no disponible en backend - comentado temporalmente
+    // @PATCH("admin/checklist-sections/checklist/{checklistId}/distribute-percentages")
+    // suspend fun distributeSectionPercentages(@Path("checklistId") checklistId: Long): Response<List<SectionTemplateDto>>
+
+    @PATCH("admin/checklist-sections/checklist/{checklistId}/reorder")
+    suspend fun reorderSections(
+        @Path("checklistId") checklistId: Long,
+        @Body sectionIds: List<Long>
+    ): Response<List<SectionTemplateDto>>
+
+    // Items por sección
+    @GET("admin/checklist-items/section/{sectionId}")
+    suspend fun getSectionItems(@Path("sectionId") sectionId: Long): Response<List<ItemTemplateDto>>
+
+    @POST("admin/checklist-sections/{sectionId}/items")
+    suspend fun createSectionItem(@Path("sectionId") sectionId: Long, @Body item: ItemTemplateDto): Response<ItemTemplateDto>
+
+    @PATCH("admin/checklist-items/{id}")
+    suspend fun updateSectionItem(@Path("id") id: Long, @Body item: ItemTemplateDto): Response<ItemTemplateDto>
+
+    @DELETE("admin/checklist-sections/{sectionId}/items/{itemId}")
+    suspend fun deleteSectionItem(
+        @Path("sectionId") sectionId: Long,
+        @Path("itemId") itemId: Long
+    ): Response<Unit>
+
+    @PATCH("admin/checklist-items/section/{sectionId}/update-percentages")
+    suspend fun updateItemPercentages(
+        @Path("sectionId") sectionId: Long,
+        @Body items: List<Map<String, Any>> // [{id, percentage}]
+    ): Response<List<ItemTemplateDto>>
+
+    @PATCH("admin/checklist-items/section/{sectionId}/distribute-percentages")
+    suspend fun distributeItemPercentages(@Path("sectionId") sectionId: Long): Response<DistributeItemsResponse>
+
+    @PATCH("admin/checklist-items/section/{sectionId}/reorder")
+    suspend fun reorderItems(
+        @Path("sectionId") sectionId: Long,
+        @Body itemIds: List<Long>
+    ): Response<List<ItemTemplateDto>>
+
+    @PATCH("admin/checklist-items/{itemId}/move-to-section/{targetSectionId}")
+    suspend fun moveItemToSection(
+        @Path("itemId") itemId: Long,
+        @Path("targetSectionId") targetSectionId: Long
+    ): Response<ItemTemplateDto>
+
+    @GET("/admin/checklist-sections/checklist/{checklistId}")
+    suspend fun getChecklistSections(@Path("checklistId") checklistId: Long): Response<List<ChecklistSectionDto>>
 }

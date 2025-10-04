@@ -8,6 +8,9 @@ import mx.checklist.data.auth.Authenticated
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.HttpException
+import retrofit2.Response
 import java.io.File
 
 class Repo(
@@ -126,7 +129,7 @@ class Repo(
     suspend fun uploadAttachments(itemId: Long, files: List<File>): List<AttachmentDto> {
         val parts = files.map { file ->
             val media = "image/*".toMediaTypeOrNull()
-            val body: RequestBody = RequestBody.create(media, file)
+            val body: RequestBody = file.asRequestBody(media)
             MultipartBody.Part.createFormData("files", file.name, body)
         }
         // Usar el cliente específico para uploads con timeouts más largos
@@ -162,6 +165,13 @@ class Repo(
 
     suspend fun adminGetTemplate(templateId: Long): AdminTemplateDto {
         return api.adminGetTemplate(templateId)
+    }
+
+    // NUEVO: Método público para obtener estructura de template (AUDITOR/SUPERVISOR)
+    // No requiere permisos de admin, solo autenticación JWT
+    // El backend filtra automáticamente por scope del usuario
+    suspend fun getTemplateStructure(templateId: Long): AdminTemplateDto {
+        return api.getTemplateStructure(templateId)
     }
 
     suspend fun adminUpdateTemplate(templateId: Long, request: UpdateTemplateDto) {
@@ -211,8 +221,7 @@ class Repo(
      * Obtener resumen de asignaciones por área
      */
     suspend fun getAssignmentSummary(): List<AssignmentSummaryDto> {
-    val response = api.getAssignmentSummary()
-        // TODO: usar response.meta para paginación futura
+        val response = api.getAssignmentSummary()
         return response.data
     }
     
@@ -239,4 +248,62 @@ class Repo(
     suspend fun getAssignmentSectors(): List<Int> {
         return api.getAssignmentSectors()
     }
+
+    private fun <T> Response<T>.requireBody(): T {
+        if (isSuccessful) return body() ?: throw IllegalStateException("Respuesta sin cuerpo")
+        throw HttpException(this)
+    }
+
+    // === ESTRUCTURA CHECKLIST (Secciones & Items) ===
+    suspend fun getSections(checklistId: Long): List<SectionTemplateDto> = api.getSections(checklistId).requireBody()
+    suspend fun createSection(checklistId: Long, section: SectionTemplateCreateDto): SectionTemplateDto = api.createSection(checklistId, section).requireBody()
+    suspend fun updateSection(id: Long, section: SectionTemplateUpdateDto): SectionTemplateDto {
+        return api.updateSection(id, section).requireBody()
+    }
+    suspend fun deleteSection(id: Long) { api.deleteSection(id).requireBody() }
+    suspend fun updateSectionPercentages(checklistId: Long, sections: List<mx.checklist.data.api.dto.SectionPercentageUpdateDto>): List<SectionTemplateDto> =
+        api.updateSectionPercentages(checklistId, mx.checklist.data.api.dto.SectionPercentagesPayload(sections)).requireBody()
+
+    // Implementación manual de distribución de porcentajes para secciones
+    suspend fun distributeSectionPercentages(checklistId: Long): List<SectionTemplateDto> {
+        // Obtener las secciones actuales
+        val currentSections = getSections(checklistId)
+
+        if (currentSections.isEmpty()) {
+            return emptyList()
+        }
+
+        // Calcular porcentaje equitativo
+        val equalPercentage = 100.0 / currentSections.size
+
+        // Crear lista de actualizaciones
+        val updates = currentSections.map { section ->
+            mx.checklist.data.api.dto.SectionPercentageUpdateDto(
+                id = section.id ?: 0L,
+                percentage = equalPercentage
+            )
+        }
+
+        // Usar el endpoint de actualización existente
+        return updateSectionPercentages(checklistId, updates)
+    }
+
+    suspend fun reorderSections(checklistId: Long, sectionIds: List<Long>): List<SectionTemplateDto> = api.reorderSections(checklistId, sectionIds).requireBody()
+
+    suspend fun getSectionItems(sectionId: Long): List<ItemTemplateDto> = api.getSectionItems(sectionId).requireBody()
+    suspend fun createSectionItem(sectionId: Long, item: ItemTemplateDto): ItemTemplateDto = api.createSectionItem(sectionId, item).requireBody()
+    suspend fun updateSectionItem(id: Long, item: ItemTemplateDto): ItemTemplateDto = api.updateSectionItem(id, item).requireBody()
+    suspend fun deleteSectionItem(sectionId: Long, itemId: Long) {
+        api.deleteSectionItem(sectionId, itemId).requireBody()
+    }
+    suspend fun updateItemPercentages(sectionId: Long, items: List<Map<String, Any>>): List<ItemTemplateDto> = api.updateItemPercentages(sectionId, items).requireBody()
+    suspend fun distributeItemPercentages(sectionId: Long): List<ItemTemplateDto> {
+        val response = api.distributeItemPercentages(sectionId).requireBody()
+        return response.items ?: emptyList()
+    }
+    suspend fun reorderItems(sectionId: Long, itemIds: List<Long>): List<ItemTemplateDto> = api.reorderItems(sectionId, itemIds).requireBody()
+    suspend fun moveItemToSection(itemId: Long, targetSectionId: Long): ItemTemplateDto = api.moveItemToSection(itemId, targetSectionId).requireBody()
+
+    suspend fun getChecklistSections(checklistId: Long): List<ChecklistSectionDto> =
+        api.getChecklistSections(checklistId).requireBody()
 }

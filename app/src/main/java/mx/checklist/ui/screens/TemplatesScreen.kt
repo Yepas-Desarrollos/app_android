@@ -1,8 +1,10 @@
 package mx.checklist.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,10 +15,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,7 +76,8 @@ fun TemplatesScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Plantillas — Tienda $storeCode", style = MaterialTheme.typography.headlineSmall)
+            Text("Selecciona un Checklist", style = MaterialTheme.typography.headlineSmall)
+            Text("Tienda: $storeCode", style = MaterialTheme.typography.bodyMedium)
             if (error != null) {
                 Text("Error: $error", color = MaterialTheme.colorScheme.error)
             }
@@ -97,7 +105,7 @@ fun TemplatesScreen(
                 TemplateCard(
                     t = t,
                     loading = loading,
-                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(id, storeCode) } }
+                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(t.id, storeCode) } }
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -114,7 +122,7 @@ fun TemplatesScreen(
                 TemplateCard(
                     t = t,
                     loading = loading,
-                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(id, storeCode) } }
+                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(t.id, storeCode) } }
                 )
             }
         }
@@ -130,7 +138,7 @@ fun TemplatesScreen(
                 TemplateCard(
                     t = t,
                     loading = loading,
-                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(id, storeCode) } }
+                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(t.id, storeCode) } }
                 )
             }
         }
@@ -146,7 +154,7 @@ fun TemplatesScreen(
                 TemplateCard(
                     t = t,
                     loading = loading,
-                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(id, storeCode) } }
+                    onCreate = { vm.createRun(storeCode, t.id) { id -> onRunCreated(t.id, storeCode) } }
                 )
             }
         }
@@ -159,7 +167,11 @@ private fun TemplateCard(
     loading: Boolean,
     onCreate: () -> Unit
 ) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !loading) { onCreate() }
+    ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(t.name, style = MaterialTheme.typography.titleMedium)
             val meta = listOfNotNull(
@@ -169,11 +181,14 @@ private fun TemplateCard(
             ).joinToString("  •  ")
             if (meta.isNotBlank()) Text(meta, style = MaterialTheme.typography.bodySmall)
 
-            Button(
-                enabled = !loading,
-                onClick = onCreate,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Iniciar checklist") }
+            // Texto indicativo en lugar de botón (ya que toda la tarjeta es clickeable)
+            Text(
+                text = if (loading) "Cargando..." else "Toca para iniciar →",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
+            )
         }
     }
 }

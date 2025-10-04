@@ -36,7 +36,7 @@ fun HomeScreen(
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onNuevaCorrida, modifier = Modifier.weight(1f)) {
-                Text("Realizar checklist")
+                Text("Nuevo checklist")
             }
             Button(onClick = onOpenHistory, modifier = Modifier.weight(1f)) {
                 Text("Historial")

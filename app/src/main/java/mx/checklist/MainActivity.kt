@@ -21,6 +21,7 @@ import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.ui.vm.AdminViewModel
 import mx.checklist.ui.vm.AssignmentViewModel
+import mx.checklist.ui.vm.ChecklistStructureViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
                 val runsVM = viewModel<RunsViewModel>(factory = SimpleFactory { RunsViewModel(repo) })
                 val adminVM = viewModel<AdminViewModel>(factory = SimpleFactory { AdminViewModel(repo) })
                 val assignmentVM = viewModel<AssignmentViewModel>(factory = SimpleFactory { AssignmentViewModel(repo) })
+                val checklistVM = viewModel<ChecklistStructureViewModel>(factory = SimpleFactory { ChecklistStructureViewModel(repo) })
 
                 // Inicializar AuthState si hay token guardado
                 LaunchedEffect(Unit) {
@@ -66,7 +68,8 @@ class MainActivity : ComponentActivity() {
                         authVM = authVM,
                         runsVM = runsVM,
                         adminVM = adminVM,
-                        assignmentVM = assignmentVM
+                        assignmentVM = assignmentVM,
+                        checklistVM = checklistVM
                     )
                 }
             }

@@ -334,8 +334,14 @@ private fun EmptyStateCard(message: String) {
 
 private fun formatDate(date: String): String {
     return try {
+        // Parser para fecha en UTC (la 'Z' indica UTC)
         val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = TimeZone.getTimeZone("UTC") // ← IMPORTANTE: indicar que la entrada es UTC
+
+        // Formatter para mostrar en hora local
         val outputFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        outputFormat.timeZone = TimeZone.getDefault() // ← Usar zona horaria del dispositivo
+
         val parsedDate = inputFormat.parse(date)
         outputFormat.format(parsedDate ?: Date())
     } catch (e: Exception) {
