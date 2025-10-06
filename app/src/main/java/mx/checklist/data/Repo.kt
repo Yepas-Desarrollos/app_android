@@ -88,7 +88,8 @@ class Repo(
     suspend fun createRun(storeCode: String, templateId: Long): RunRes =
         api.createRun(CreateRunReq(storeCode.trim(), templateId))
 
-    suspend fun runItems(runId: Long): List<RunItemDto> = api.runItems(runId)
+    suspend fun runItems(runId: Long): List<RunItemDto> =
+        api.runItems(runId).sortedBy { it.orderIndex }
 
     suspend fun respond(itemId: Long, status: String?, text: String?, number: Double?, barcode: String? = null): RunItemDto {
         val s = requireNotNull(status?.trim()?.takeIf { it.isNotEmpty() }) { "status requerido" }
