@@ -17,6 +17,7 @@ import mx.checklist.data.TokenStore
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
 import mx.checklist.ui.AppNavHost
+import mx.checklist.ui.theme.ChecklistTheme
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.ui.vm.AdminViewModel
@@ -31,7 +32,7 @@ class MainActivity : ComponentActivity() {
         val repo = Repo(tokenStore = tokenStore)
 
         setContent {
-            MaterialTheme {
+            ChecklistTheme {  // ✅ Cambiado de MaterialTheme a ChecklistTheme
                 val authVM = viewModel<AuthViewModel>(factory = SimpleFactory { AuthViewModel(repo) })
                 val runsVM = viewModel<RunsViewModel>(factory = SimpleFactory { RunsViewModel(repo) })
                 val adminVM = viewModel<AdminViewModel>(factory = SimpleFactory { AdminViewModel(repo) })

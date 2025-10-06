@@ -2,10 +2,11 @@ package mx.checklist.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Paleta Azul Oscuro Corporativo
+val DarkBlue80 = Color(0xFF90CAF9)  // Azul claro para modo oscuro
+val BlueGrey80 = Color(0xFFB0BEC5)  // Gris azulado claro
+val LightBlue80 = Color(0xFF81D4FA) // Azul celeste
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val DarkBlue40 = Color(0xFF0D47A1)  // Azul oscuro corporativo principal
+val BlueGrey40 = Color(0xFF37474F)  // Gris azulado oscuro
+val AccentBlue40 = Color(0xFF1976D2) // Azul acento

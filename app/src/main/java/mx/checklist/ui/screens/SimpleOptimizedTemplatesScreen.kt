@@ -4,10 +4,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.TemplateDto
@@ -32,11 +38,6 @@ fun SimpleOptimizedTemplatesScreen(
         allTemplates.filter { it.isActive }
     }
     
-    // Cargar templates al inicio
-    LaunchedEffect(storeCode) {
-        // Los templates se cargan automáticamente con getTemplates()
-    }
-    
     // Auto-dismiss de errores después de 5 segundos
     LaunchedEffect(error) {
         if (error != null) {
@@ -45,80 +46,87 @@ fun SimpleOptimizedTemplatesScreen(
         }
     }
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Text(
-            text = "Selecciona un Checklist",
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Text(
-            text = "Tienda: $storeCode",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        // Error
-        error?.let { errorMsg ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header mejorado
+            Column {
                 Text(
-                    text = "Error: $errorMsg",
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    text = "Checklists Disponibles",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Tienda: $storeCode",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-        
-        // Estado de carga
-        if (loading) {
-            Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            // Lista de templates REAL
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(templates, key = { it.id }) { template ->
-                    TemplateCard(
-                        template = template,
-                        loading = loading,
-                        onStart = {
-                            runsVM.createRun(storeCode, template.id) { runId ->
-                                // ✅ CORREGIDO: Pasar runId (devuelto por createRun) en lugar de templateId
-                                onRunCreated(runId, template.name)
-                            }
-                        }
+
+            // Error mejorado
+            error?.let { errorMsg ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Error: $errorMsg",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                
-                if (templates.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No hay checklists disponibles para esta tienda",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+            }
+
+            // Estado de carga
+            if (loading && templates.isEmpty()) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Cargando checklists...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    "${templates.size} checklists disponibles",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Lista de templates mejorada
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(templates, key = { it.id }) { template ->
+                        TemplateCard(
+                            template = template,
+                            loading = loading,
+                            onStart = {
+                                runsVM.createRun(storeCode, template.id) { runId ->
+                                    onRunCreated(runId, template.name)
+                                }
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -132,44 +140,80 @@ private fun TemplateCard(
     loading: Boolean,
     onStart: () -> Unit
 ) {
-    ElevatedCard(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !loading) { onStart() }
+            .clickable(enabled = !loading) { onStart() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = template.name,
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            val meta = listOfNotNull(
-                template.version?.let { "Versión: $it" },
-                template.scope?.takeIf { it.isNotBlank() }?.let { "Ámbito: $it" },
-                template.frequency?.takeIf { it.isNotBlank() }?.let { "Frecuencia: $it" }
-            ).joinToString("  •  ")
-
-            if (meta.isNotBlank()) {
-                Text(
-                    text = meta,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Checklist",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
                 )
+
+                Column {
+                    Text(
+                        template.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        template.scope?.let { scope ->
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    scope,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        template.version?.let { version ->
+                            Text(
+                                "v$version",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
 
-            // Texto indicativo en lugar del botón play
-            Text(
-                text = if (loading) "Cargando..." else "Toca para iniciar →",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.End
-            )
+            // Botón de iniciar
+            FilledIconButton(
+                onClick = onStart,
+                enabled = !loading,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = "Iniciar")
+            }
         }
     }
 }

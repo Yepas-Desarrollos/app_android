@@ -89,6 +89,13 @@ fun ItemsScreen(
 
     val shownTemplateName = templateName ?: runInfo?.templateName
 
+    // ✅ CORREGIDO: Agrupar items por categoría sin depender de sectionId
+    val itemsBySection = remember(items) {
+        items
+            .groupBy { it.itemTemplate?.category ?: "Sin categoría" }
+            .toSortedMap() // Ordenar alfabéticamente por nombre de categoría
+    }
+
     val answered = items.count { !it.responseStatus.isNullOrEmpty() }
     val total = items.size.coerceAtLeast(1)
     val allAnswered = items.isNotEmpty() && answered == items.size
@@ -110,7 +117,6 @@ fun ItemsScreen(
         if (error != null) Text("Error: $error", color = MaterialTheme.colorScheme.error)
 
         Text("$answered / ${items.size} items respondidos")
-        // LinearProgressIndicator: evitar función deprecada
         LinearProgressIndicator(progress = { answered / total.toFloat() }, modifier = Modifier.fillMaxWidth())
 
         if (loading && items.isEmpty()) {
@@ -121,15 +127,47 @@ fun ItemsScreen(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(items, key = { it.id }) { item ->
-                ItemCard(
-                    item = item,
-                    readOnly = isReadOnly,
-                    vm = vm,
-                    onSave = { currentStatus, respText, number ->
-                        vm.respond(item.id, currentStatus, respText, number)
+            // ✅ CORREGIDO: Iterar correctamente sobre todas las secciones
+            itemsBySection.forEach { (sectionName, sectionItems) ->
+                // Calcular estadísticas de la sección
+                val sectionAnswered = sectionItems.count { !it.responseStatus.isNullOrEmpty() }
+                val sectionTotal = sectionItems.size
+
+                // Encabezado de sección
+                item(key = "header_$sectionName") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = sectionName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "$sectionAnswered de $sectionTotal completados",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
-                )
+                }
+
+                // Items de la sección ordenados por orderIndex
+                items(
+                    items = sectionItems.sortedBy { it.orderIndex },
+                    key = { it.id }
+                ) { item ->
+                    ItemCard(
+                        item = item,
+                        readOnly = isReadOnly,
+                        vm = vm,
+                        onSave = { currentStatus, respText, number ->
+                            vm.respond(item.id, currentStatus, respText, number)
+                        }
+                    )
+                }
             }
         }
 

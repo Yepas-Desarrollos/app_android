@@ -3,14 +3,19 @@ package mx.checklist.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.auth.AuthState
@@ -27,32 +32,26 @@ import java.util.*
 fun SimpleOptimizedHistoryScreen(
     runsVM: RunsViewModel,
     adminVM: AdminViewModel? = null,
-    onOpenRun: (Long, String, String?) -> Unit = { _, _, _ -> }
+    onOpenRun: (Long, String?, String?) -> Unit = { _, _, _ -> }
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showDeleteDialog by remember { mutableStateOf<RunSummaryDto?>(null) }
     
-    // Verificar si el usuario es admin
     val isAdmin = adminVM != null
-    
-    // Verificar si puede borrar corridas enviadas (solo ADMIN real)
     val canDeleteSubmitted = remember(isAdmin) {
         AuthState.roleCode == "ADMIN"
     }
     
-    // Estados del ViewModel
     val drafts by runsVM.pendingRunsFlow().collectAsStateWithLifecycle()
     val submitted by runsVM.historyRunsFlow().collectAsStateWithLifecycle()
     val loading by runsVM.loading.collectAsStateWithLifecycle()
     val error by runsVM.error.collectAsStateWithLifecycle()
     
-    // Cargar datos al inicio
     LaunchedEffect(Unit) {
-        runsVM.loadPendingRuns(all = true) // todos los borradores
-        runsVM.loadHistoryRuns()           // enviadas recientes
+        runsVM.loadPendingRuns(all = true)
+        runsVM.loadHistoryRuns()
     }
     
-    // Auto-dismiss de errores después de 5 segundos
     LaunchedEffect(error) {
         if (error != null) {
             kotlinx.coroutines.delay(5000)
@@ -60,200 +59,190 @@ fun SimpleOptimizedHistoryScreen(
         }
     }
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Text(
-            text = "Historial",
-            style = MaterialTheme.typography.headlineSmall
-        )
-        
-        // Error message
-        error?.let { errorMsg ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header mejorado
+            Text(
+                text = "Historial de Checklists",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Error mejorado
+            error?.let { errorMsg ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Error: $errorMsg",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
+            // Tabs mejorados
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Error: $errorMsg",
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = {
+                        Text(
+                            "Borradores (${drafts.size})",
+                            fontWeight = if (selectedTab == 0) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    },
+                    icon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = {
+                        Text(
+                            "Enviados (${submitted.size})",
+                            fontWeight = if (selectedTab == 1) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    },
+                    icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) }
                 )
             }
-        }
-        
-        // Tab selector
-        TabRow(selectedTabIndex = selectedTab) {
-            Tab(
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
-                text = { Text("Borradores") }
-            )
-            Tab(
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
-                text = { Text("Enviadas") }
-            )
-        }
-        
-        // Content based on selected tab
-        when (selectedTab) {
-            0 -> DraftsContent(
-                drafts = drafts,
-                loading = loading,
-                isAdmin = isAdmin,
-                onOpenRun = onOpenRun,
-                onDeleteRun = { run -> showDeleteDialog = run }
-            )
-            1 -> SubmittedContent(
-                submitted = submitted,
-                loading = loading,
-                isAdmin = isAdmin,
-                canDeleteSubmitted = canDeleteSubmitted,
-                onOpenRun = onOpenRun,
-                onDeleteRun = { run -> showDeleteDialog = run }
-            )
+
+            // Contenido
+            if (loading && drafts.isEmpty() && submitted.isEmpty()) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Cargando...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                val currentList = if (selectedTab == 0) drafts else submitted
+
+                if (currentList.isEmpty()) {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                if (selectedTab == 0) "No hay borradores" else "No hay checklists enviados",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(currentList, key = { it.id }) { run ->
+                            RunCard(
+                                run = run,
+                                canDelete = selectedTab == 0 || canDeleteSubmitted,
+                                onOpen = { onOpenRun(run.id, run.storeCode, run.templateName) },
+                                onDelete = { showDeleteDialog = run }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
-    
-    // Dialog de confirmación para eliminar runs (solo para admins)
+
+    // Dialog de confirmación de borrado
     showDeleteDialog?.let { run ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Eliminar Run") },
-            text = { 
-                Text(
-                    if (selectedTab == 1) {
-                        "¿Estás seguro de que quieres eliminar permanentemente esta run enviada?\n\nTemplate: ${run.templateName}\nTienda: ${run.storeCode}\n\nEsta acción no se puede deshacer."
-                    } else {
-                        "¿Estás seguro de que quieres eliminar este borrador?\n\nTemplate: ${run.templateName}\nTienda: ${run.storeCode}"
-                    }
-                )
-            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (selectedTab == 1) {
-                            // Force delete para runs enviadas (solo admins)
-                            adminVM?.forceDeleteRun(run.id) {
-                                // Run eliminada exitosamente - refrescar datos
-                                runsVM.loadHistoryRuns()
-                            }
-                        } else {
-                            // Delete normal para borradores
-                            runsVM.deleteRun(run.id)
-                        }
+                        runsVM.deleteRun(run.id)
                         showDeleteDialog = null
-                    }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text("Eliminar")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
                     Text("Cancelar")
                 }
+            },
+            title = { Text("¿Eliminar checklist?") },
+            text = {
+                Text("Se eliminará el checklist #${run.id} de ${run.templateName ?: "Sin nombre"} (${run.storeCode})")
             }
         )
     }
 }
 
 @Composable
-private fun DraftsContent(
-    drafts: List<RunSummaryDto>,
-    loading: Boolean,
-    isAdmin: Boolean,
-    onOpenRun: (Long, String, String?) -> Unit,
-    onDeleteRun: (RunSummaryDto) -> Unit
-) {
-    if (loading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(drafts, key = { it.id }) { run ->
-                RunCard(
-                    run = run,
-                    isDraft = true,
-                    onOpen = { onOpenRun(run.id, run.storeCode ?: "", run.templateName) },
-                    // Borradores: managers y admin pueden borrar
-                    onDelete = if (isAdmin) { { onDeleteRun(run) } } else null
-                )
-            }
-            
-            if (drafts.isEmpty()) {
-                item {
-                    EmptyStateCard("No tienes borradores guardados")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SubmittedContent(
-    submitted: List<RunSummaryDto>,
-    loading: Boolean,
-    isAdmin: Boolean,
-    canDeleteSubmitted: Boolean,
-    onOpenRun: (Long, String, String?) -> Unit,
-    onDeleteRun: (RunSummaryDto) -> Unit
-) {
-    if (loading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(submitted, key = { it.id }) { run ->
-                RunCard(
-                    run = run,
-                    isDraft = false,
-                    onOpen = { onOpenRun(run.id, run.storeCode ?: "", run.templateName) },
-                    // Enviadas: solo ADMIN real puede borrar
-                    onDelete = if (canDeleteSubmitted) { { onDeleteRun(run) } } else null
-                )
-            }
-            
-            if (submitted.isEmpty()) {
-                item {
-                    EmptyStateCard("No tienes runs enviadas")
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun RunCard(
     run: RunSummaryDto,
-    isDraft: Boolean,
+    canDelete: Boolean,
     onOpen: () -> Unit,
-    onDelete: (() -> Unit)? = null
+    onDelete: () -> Unit
 ) {
+    val dateFormat = remember { SimpleDateFormat("dd/MMM/yyyy HH:mm", Locale.getDefault()) }
+    val formattedDate = remember(run.updatedAt) {
+        try {
+            val date = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(run.updatedAt)
+            date?.let { dateFormat.format(it) } ?: run.updatedAt
+        } catch (e: Exception) {
+            run.updatedAt
+        }
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -262,89 +251,89 @@ private fun RunCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = run.templateName ?: "Template sin nombre",
-                        style = MaterialTheme.typography.titleMedium
+                        run.templateName ?: "Checklist #${run.id}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Tienda: ${run.storeCode}",
-                        style = MaterialTheme.typography.bodySmall,
+                        "Tienda: ${run.storeCode}",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = formatDate(run.updatedAt),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (isDraft) {
-                        Text(
-                            text = "📝 Borrador",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Text(
-                            text = "✅ Enviado",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
                 }
-                
-                Row {
-                    IconButton(onClick = onOpen) {
-                        Icon(
-                            Icons.Filled.Info,
-                            contentDescription = if (isDraft) "Continuar" else "Ver"
-                        )
+
+                // Badge de estado
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = when(run.status) {
+                        "SUBMITTED" -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                        "PENDING" -> Color(0xFFFFA726).copy(alpha = 0.1f)
+                        else -> Color.Gray.copy(alpha = 0.1f)
                     }
-                    
-                    // Mostrar botón de eliminar solo para admins
-                    if (onDelete != null) {
-                        IconButton(onClick = { onDelete.invoke() }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Eliminar",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
+                ) {
+                    Text(
+                        when(run.status) {
+                            "SUBMITTED" -> "Enviado"
+                            "PENDING" -> "Borrador"
+                            else -> run.status
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = when(run.status) {
+                            "SUBMITTED" -> Color(0xFF4CAF50)
+                            "PENDING" -> Color(0xFFFFA726)
+                            else -> Color.Gray
+                        },
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Progreso
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "${run.answeredCount} de ${run.totalCount} items completados",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LinearProgressIndicator(
+                    progress = { (run.answeredCount.toFloat() / run.totalCount.coerceAtLeast(1)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Fecha
+            Text(
+                "Actualizado: $formattedDate",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Botones
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onOpen,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (run.status == "SUBMITTED") "Ver" else "Continuar")
+                }
+
+                if (canDelete) {
+                    OutlinedButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar")
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyStateCard(message: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-private fun formatDate(date: String): String {
-    return try {
-        // Parser para fecha en UTC (la 'Z' indica UTC)
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        inputFormat.timeZone = TimeZone.getTimeZone("UTC") // ← IMPORTANTE: indicar que la entrada es UTC
-
-        // Formatter para mostrar en hora local
-        val outputFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        outputFormat.timeZone = TimeZone.getDefault() // ← Usar zona horaria del dispositivo
-
-        val parsedDate = inputFormat.parse(date)
-        outputFormat.format(parsedDate ?: Date())
-    } catch (e: Exception) {
-        date
     }
 }
