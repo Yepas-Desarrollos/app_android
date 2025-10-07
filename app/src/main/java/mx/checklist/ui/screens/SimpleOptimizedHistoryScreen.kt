@@ -222,13 +222,34 @@ private fun RunCard(
     onOpen: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("dd/MMM/yyyy HH:mm", Locale.getDefault()) }
     val formattedDate = remember(run.updatedAt) {
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(run.updatedAt)
-            date?.let { dateFormat.format(it) } ?: run.updatedAt
+            // El backend envía en UTC, debemos convertir a hora local
+            val inFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
+            inFmt.timeZone = TimeZone.getTimeZone("UTC")
+
+            val outFmt = SimpleDateFormat("dd/MMM/yyyy HH:mm", Locale.getDefault())
+            outFmt.timeZone = TimeZone.getDefault() // Hora local
+
+            // Remover la 'Z' si existe
+            val isoClean = run.updatedAt.replace("Z", "")
+            val date = inFmt.parse(isoClean)
+            date?.let { outFmt.format(it) } ?: run.updatedAt
         } catch (e: Exception) {
-            run.updatedAt
+            // Si falla, intentar sin milisegundos
+            try {
+                val inFmtSimple = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                inFmtSimple.timeZone = TimeZone.getTimeZone("UTC")
+
+                val outFmt = SimpleDateFormat("dd/MMM/yyyy HH:mm", Locale.getDefault())
+                outFmt.timeZone = TimeZone.getDefault()
+
+                val isoClean = run.updatedAt.replace("Z", "")
+                val date = inFmtSimple.parse(isoClean)
+                date?.let { outFmt.format(it) } ?: run.updatedAt
+            } catch (e: Exception) {
+                run.updatedAt
+            }
         }
     }
 

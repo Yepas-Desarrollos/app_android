@@ -179,16 +179,29 @@ fun HistoryScreen(
 }
 
 private fun isoUtcToLocalHourMinute(iso: String): String {
-    // Backend envía ISO en UTC (Z). Lo convertimos a hora local.
-    val inFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+    // Backend envía ISO en UTC (puede venir con 'Z' o sin ella)
+    val inFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
     inFmt.timeZone = TimeZone.getTimeZone("UTC")
+
     val outFmt = SimpleDateFormat("HH:mm 'hs' dd/MM", Locale.getDefault())
-    outFmt.timeZone = TimeZone.getDefault()
+    outFmt.timeZone = TimeZone.getDefault() // Hora local del dispositivo
+
     return try {
-        val date = inFmt.parse(iso)
+        // Remover la 'Z' si existe
+        val isoClean = iso.replace("Z", "")
+        val date = inFmt.parse(isoClean)
         if (date != null) outFmt.format(date) else iso
     } catch (_: Exception) {
-        iso
+        // Si falla, intentar sin milisegundos
+        try {
+            val inFmtSimple = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            inFmtSimple.timeZone = TimeZone.getTimeZone("UTC")
+            val isoClean = iso.replace("Z", "")
+            val date = inFmtSimple.parse(isoClean)
+            if (date != null) outFmt.format(date) else iso
+        } catch (_: Exception) {
+            iso
+        }
     }
 }
 
