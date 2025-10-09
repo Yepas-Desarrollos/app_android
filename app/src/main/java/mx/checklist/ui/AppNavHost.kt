@@ -209,26 +209,23 @@ fun AppNavHost(
             val templateIdString = backStack.arguments?.getString("templateId") ?: "-1"
             val templateIdFromArg = templateIdString.toLongOrNull()?.takeIf { it != -1L }
 
-            val onCreateItemFunc: (Long) -> Unit = { sectionId: Long ->
-                // Navega al formulario de ítem, usando el templateId y el sectionId
-                nav.navigate(NavRoutes.adminItemForm(templateId = templateIdFromArg ?: -1L, sectionId = sectionId, itemId = null))
+            //  Actualizado: onCreateItem ahora recibe templateId directamente
+            val onCreateItemFunc: (Long) -> Unit = { templateId: Long ->
+                nav.navigate(NavRoutes.adminItemForm(templateId = templateId, itemId = null))
             }
-            val onEditSectionFunc: (Long, Long) -> Unit = { templateId: Long, sectionId: Long ->
-                // Navega al formulario de sección para EDITAR sección
-                nav.navigate(NavRoutes.adminSectionForm(templateId = templateId, sectionId = sectionId))
+
+            //  Actualizado: onEditItem ahora recibe templateId e itemId
+            val onEditItemFunc: (Long, Long) -> Unit = { templateId: Long, itemId: Long ->
+                nav.navigate(NavRoutes.adminItemForm(templateId = templateId, itemId = itemId))
             }
-            val onCreateSectionFunc: (Long) -> Unit = { templateId: Long ->
-                // Navega al formulario de sección para CREAR nueva sección
-                nav.navigate(NavRoutes.adminSectionForm(templateId = templateId, sectionId = null))
-            }
+
             AdminTemplateFormScreen(
                 vm = adminVM,
                 templateId = templateIdFromArg,
                 onBack = { nav.popBackStack() },
                 onSaved = { adminVM.loadTemplates(); nav.popBackStack() },
                 onCreateItem = onCreateItemFunc,
-                onEditItem = onEditSectionFunc, // Este es para editar SECCIONES
-                onCreateSection = onCreateSectionFunc
+                onEditItem = onEditItemFunc
             )
         }
 
@@ -252,16 +249,17 @@ fun AppNavHost(
             val sectionIdString = backStack.arguments?.getString("sectionId") ?: "-1"
             val sectionIdFromArg = sectionIdString.toLongOrNull()?.takeIf { it != -1L }
 
-            val onCreateItemFunc: (Long) -> Unit = { currentSectionId: Long -> // currentSectionId es el ID de la sección actual
-                 nav.navigate(NavRoutes.adminItemForm(templateId = templateId, sectionId = currentSectionId, itemId = null))
+            // ✅ CORREGIDO: Eliminar sectionId de las llamadas
+            val onCreateItemFunc: (Long) -> Unit = { _ -> // ignorar el parámetro de sección
+                 nav.navigate(NavRoutes.adminItemForm(templateId = templateId, itemId = null))
             }
-            val onEditItemFunc: (Long, Long) -> Unit = { currentSectionId: Long, itemID: Long ->
-                 nav.navigate(NavRoutes.adminItemForm(templateId = templateId, sectionId = currentSectionId, itemId = itemID))
+            val onEditItemFunc: (Long, Long) -> Unit = { _, itemID: Long ->
+                 nav.navigate(NavRoutes.adminItemForm(templateId = templateId, itemId = itemID))
             }
             
             AdminSectionFormScreen(
                 vm = adminVM,
-                templateId = templateId, // Cambiado de checklistId a templateId en la llamada
+                templateId = templateId,
                 sectionId = sectionIdFromArg,
                 onBack = { nav.popBackStack() },
                 onSaved = {
@@ -276,10 +274,10 @@ fun AppNavHost(
         
         // Formulario de item admin - Solo para administradores
         composable(
-            route = NavRoutes.ADMIN_ITEM_FORM, // Ruta actualizada en NavRoutes.kt
+            route = NavRoutes.ADMIN_ITEM_FORM,
             arguments = listOf(
                 navArgument("templateId") { type = NavType.LongType },
-                navArgument("sectionId") { type = NavType.LongType }, // Argumento sectionId añadido
+                //  ELIMINADO: sectionId - sistema plano
                 navArgument("itemId") {
                     type = NavType.StringType
                     nullable = false
@@ -293,15 +291,13 @@ fun AppNavHost(
             }
 
             val templateId = requireNotNull(backStack.arguments?.getLong("templateId"))
-            val sectionId = requireNotNull(backStack.arguments?.getLong("sectionId"))
             val itemIdString = backStack.arguments?.getString("itemId") ?: "-1"
             val itemId = itemIdString.toLongOrNull()?.takeIf { it != -1L }
 
             AdminItemFormScreen(
                 vm = adminVM,
-                templateId = templateId, // <-- Nuevo parámetro obligatorio
+                templateId = templateId,
                 itemId = itemId,
-                sectionId = sectionId,
                 onBack = { nav.popBackStack() },
                 onSaved = { nav.popBackStack() }
             )

@@ -332,6 +332,28 @@ private fun RunCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // ✅ NUEVO: Mostrar quién respondió (solo para SUBMITTED)
+            if (run.status == "SUBMITTED" && run.assignedTo != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        "Respondido por: ${run.assignedTo.name}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             // Botones
             Row(
                 modifier = Modifier.fillMaxWidth(),

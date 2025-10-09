@@ -10,11 +10,13 @@ data class CreateTemplateRes(
 // Respuesta al crear item template
 data class CreateItemTemplateRes(
     val id: Long,
-    val templateId: Long,
+    val templateId: Long? = null, // ✅ CAMBIADO: Opcional porque el backend no lo devuelve
+    val sectionId: Long? = null,  // ✅ AGREGADO: El backend devuelve sectionId
     val orderIndex: Int,
     val title: String,
     val category: String? = null,
     val subcategory: String? = null,
+    val percentage: Double? = null, // ✅ AGREGADO: Campo de porcentaje (pendiente en backend)
     val expectedType: String,
     val config: Map<String, Any?>? = null,
     val createdAt: String? = null
@@ -33,9 +35,9 @@ data class UpdateTemplateStatusDto(
 
 // Respuesta al actualizar status de template
 data class TemplateStatusRes(
-    val id: Long,
-    val name: String,
-    val isActive: Boolean,
+    val id: Long? = null, // ✅ CAMBIADO: Opcional porque el backend no lo devuelve
+    val name: String? = null, // ✅ CAMBIADO: Opcional también
+    val isActive: Boolean? = null, // ✅ CAMBIADO: Opcional también
     val message: String
 )
 

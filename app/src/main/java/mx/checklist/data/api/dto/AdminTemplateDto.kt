@@ -6,6 +6,7 @@ package mx.checklist.data.api.dto
 data class AdminTemplateDto(
     val id: Long,
     val name: String,
+    val targetRoleCode: String? = null, // ✅ NUEVO: Rol objetivo del template (ROL_AUD, ROL_PREV, etc.)
     val scope: String? = null,
     val version: Int? = null,
     val frequency: String? = null,

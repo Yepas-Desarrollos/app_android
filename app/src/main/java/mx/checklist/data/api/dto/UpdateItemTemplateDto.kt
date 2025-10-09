@@ -5,6 +5,7 @@ data class UpdateItemTemplateDto(
     val title: String? = null,
     val category: String? = null,
     val subcategory: String? = null,
+    val percentage: Double? = null, // ✅ AGREGADO: soportar porcentaje en actualización
     val expectedType: String? = null,
     val config: Map<String, Any?>? = null
 )

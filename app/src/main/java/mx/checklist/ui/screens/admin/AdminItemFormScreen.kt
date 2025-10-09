@@ -18,21 +18,22 @@ import mx.checklist.ui.vm.AdminViewModel
 fun AdminItemFormScreen(
     vm: AdminViewModel,
     templateId: Long,
-    sectionId: Long,
     itemId: Long? = null,
     initialTitle: String = "",
-    initialExpectedType: String = "TEXT", // Cambiado de "BOOLEAN" a "TEXT"
+    initialExpectedType: String = "TEXT",
     initialCategory: String = "",
     initialSubcategory: String = "",
     onBack: () -> Unit,
     onSaved: () -> Unit
 ) {
-    // Estados locales del formulario - usando campos que el backend realmente maneja
+    // Estados locales del formulario
     var title by remember { mutableStateOf(initialTitle) }
-    var expectedType by remember { mutableStateOf(initialExpectedType) }
+    var expectedType by remember { mutableStateOf(initialExpectedType) } // ✅ Usar valor inicial pasado
     var category by remember { mutableStateOf(initialCategory) }
     var subcategory by remember { mutableStateOf(initialSubcategory) }
+    var percentage by remember { mutableStateOf("") } // ✅ NUEVO: Campo de porcentaje
     var expanded by remember { mutableStateOf(false) }
+    var isDataLoaded by remember { mutableStateOf(false) } // ✅ NUEVO: Flag para controlar carga única
 
     // Estados del ViewModel
     val loading by vm.loading.collectAsStateWithLifecycle()
@@ -43,70 +44,66 @@ fun AdminItemFormScreen(
     val isEditing = itemId != null
     val screenTitle = if (isEditing) "Editar Item" else "Crear Item"
 
-    // Tipos de campo disponibles según el backend
+    // ✅ CAMBIADO: Solo tipo BOOLEAN (Sí/No) por ahora
     val fieldTypes = listOf(
-        "TEXT" to "Texto",
-        "NUMBER" to "Número", 
-        "SINGLE_CHOICE" to "Opción única", // Cambiado de "BOOLEAN"
-        "MULTIPLE_CHOICE" to "Opción múltiple",
-        "PHOTO" to "Foto"
+        "BOOLEAN" to "Sí / No"
     )
 
-    // Navegar de vuelta cuando se guarda exitosamente
-    LaunchedEffect(success) {
-        val currentSuccess = success
-        if (currentSuccess != null && !currentSuccess.contains("error", ignoreCase = true)) {
-            // Solo navegar si realmente fue exitoso
-            kotlinx.coroutines.delay(1000) // Reducido de 1500ms a 1000ms
-            onSaved()
-        }
-    }
-
-    // Limpiar error si hay éxito
+    // Limpiar mensajes de éxito después de 3 segundos
     LaunchedEffect(success) {
         val currentSuccess = success
         if (currentSuccess != null) {
-            kotlinx.coroutines.delay(2000) // Limpiar después de 2 segundos
+            kotlinx.coroutines.delay(3000)
             vm.clearSuccess()
         }
     }
 
-    // Cargar datos del item actual si estamos editando
-    LaunchedEffect(itemId, templateId) {
-        if (itemId != null && templateId != null) {
-            println("[AdminItemFormScreen] Iniciando carga de item para edición:")
-            println("  - itemId: $itemId")
-            println("  - templateId: $templateId")
+    // ✅ CORREGIDO: Cargar template y datos del item
+    LaunchedEffect(itemId, currentTemplate) {
+        if (itemId != null) {
+            // ✅ Capturar el valor en una variable local para evitar smart cast error
+            val template = currentTemplate
 
-            // Asegurar que el template esté cargado primero
-            vm.loadTemplate(templateId)
+            // Paso 1: Cargar template si no está disponible
+            if (template == null || template.id != templateId) {
+                println("[AdminItemFormScreen] 🔄 Cargando template $templateId para editar item $itemId")
+                vm.loadTemplate(templateId)
+                return@LaunchedEffect
+            }
 
-            // Esperar un poco para que se cargue el template
-            kotlinx.coroutines.delay(500)
+            // Paso 2: Cargar datos del item solo una vez
+            if (!isDataLoaded) {
+                println("[AdminItemFormScreen] 🔄 Cargando datos del item $itemId")
 
-            val template = vm.currentTemplate.value
-            if (template != null) {
-                // Buscar el item en todas las secciones del template
-                val item = template.sections
-                    .flatMap { it.items }
-                    .find { it.id == itemId }
+                val allItemsFromRoot = template.items ?: emptyList()
+                val allItems = if (allItemsFromRoot.isNotEmpty()) {
+                    allItemsFromRoot
+                } else {
+                    template.sections?.flatMap { it.items } ?: emptyList()
+                }
+
+                println("[AdminItemFormScreen] 📋 Total items en template: ${allItems.size}")
+
+                val item = allItems.find { it.id == itemId }
 
                 if (item != null) {
+                    println("[AdminItemFormScreen] ✅ Item encontrado, cargando datos:")
+
                     title = item.title ?: ""
-                    expectedType = item.expectedType ?: "TEXT"
+                    expectedType = item.expectedType ?: "BOOLEAN"
                     category = item.category ?: ""
                     subcategory = item.subcategory ?: ""
+                    percentage = item.percentage?.toString() ?: ""
+                    isDataLoaded = true
 
-                    println("[AdminItemFormScreen] ✅ Item cargado para edición:")
-                    println("  - title: '${item.title}'")
-                    println("  - expectedType: '${item.expectedType}'")
-                    println("  - category: '${item.category}'")
-                    println("  - subcategory: '${item.subcategory}'")
+                    println("  - title: '${item.title}' -> cargado: '$title'")
+                    println("  - expectedType: '${item.expectedType}' -> cargado: '$expectedType'")
+                    println("  - category: '${item.category}' -> cargado: '$category'")
+                    println("  - subcategory: '${item.subcategory}' -> cargado: '$subcategory'")
+                    println("  - percentage: '${item.percentage}' -> cargado: '$percentage'")
                 } else {
-                    println("[AdminItemFormScreen] ⚠️ Item no encontrado en template")
+                    println("[AdminItemFormScreen] ❌ Item $itemId NO encontrado en template")
                 }
-            } else {
-                println("[AdminItemFormScreen] ⚠️ Template no cargado después del delay")
             }
         }
     }
@@ -160,18 +157,18 @@ fun AdminItemFormScreen(
                 )
             ) {
                 Text(
-                    text = "✓ $successMsg",
+                    text = successMsg,
                     modifier = Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
 
-        // Formulario del item
+        // Formulario
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = "Información del Item",
@@ -181,29 +178,78 @@ fun AdminItemFormScreen(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Título del Item *") },
+                    label = { Text("Título *") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !loading,
                     isError = title.isBlank()
                 )
 
-                // Dropdown para tipo de campo
+                // ✅ Campo de categoría OBLIGATORIO
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Categoría * (ej: Limpieza, Inventario)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !loading,
+                    isError = category.isBlank(),
+                    supportingText = {
+                        Text(
+                            text = if (category.isBlank()) "La categoría es obligatoria para agrupar los items"
+                                  else "Los items se agruparán por esta categoría",
+                            color = if (category.isBlank()) MaterialTheme.colorScheme.error
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+
+                OutlinedTextField(
+                    value = subcategory,
+                    onValueChange = { subcategory = it },
+                    label = { Text("Subcategoría (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !loading
+                )
+
+                // ✅ NUEVO: Campo para porcentaje (0-100)
+                OutlinedTextField(
+                    value = percentage,
+                    onValueChange = {
+                        // Asegurarse de que solo se ingresen números y el carácter de porcentaje
+                        if (it.all { char -> char.isDigit() || char == '%' }) {
+                            percentage = it
+                        }
+                    },
+                    label = { Text("Porcentaje (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !loading,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    supportingText = {
+                        Text(
+                            text = "Indica un porcentaje si es necesario (ej: 50%)",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+
+                // Selector de tipo de campo
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
-                        value = fieldTypes.find { it.first == expectedType }?.second ?: expectedType,
+                        value = fieldTypes.find { it.first == expectedType }?.second ?: "Texto",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Tipo de Campo *") },
+                        label = { Text("Tipo de campo *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .menuAnchor(),
                         enabled = !loading
                     )
-                    
+
                     ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
@@ -220,23 +266,7 @@ fun AdminItemFormScreen(
                     }
                 }
 
-                // Campos adicionales para categorías y subcategorías
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Categoría") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !loading
-                )
-
-                OutlinedTextField(
-                    value = subcategory,
-                    onValueChange = { subcategory = it },
-                    label = { Text("Subcategoría") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !loading
-                )
-
+                // Botones de acción
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -251,27 +281,53 @@ fun AdminItemFormScreen(
                     Button(
                         onClick = {
                             vm.clearError()
-                            vm.clearSuccess()
+                            
+                            // Validar campos obligatorios
+                            if (title.isBlank()) {
+                                // Mostrar error localmente - el ViewModel maneja errores internamente
+                                return@Button
+                            }
+                            
+                            if (category.isBlank()) {
+                                // Mostrar error localmente - el ViewModel maneja errores internamente
+                                return@Button
+                            }
+
+                            // Obtener el orderIndex más alto actual
+                            val currentTemplate = vm.currentTemplate.value
+                            val maxOrderIndex = currentTemplate?.sections
+                                ?.flatMap { it.items }
+                                ?.maxOfOrNull { it.orderIndex } ?: 0
+
                             if (isEditing && itemId != null) {
-                                vm.updateSectionItem(
+                                vm.updateItem(
+                                    templateId = templateId,
                                     itemId = itemId,
-                                    title = title,
+                                    orderIndex = null,
+                                    title = title.takeIf { it.isNotBlank() },
+                                    category = category.takeIf { it.isNotBlank() },
+                                    subcategory = subcategory.takeIf { it.isNotBlank() },
+                                    percentage = percentage.replace("%", "").toDoubleOrNull(), // ✅ AGREGADO: Parsear porcentaje
                                     expectedType = expectedType,
-                                    category = category,
-                                    subcategory = subcategory
-                                ) { /* onSuccess handled by LaunchedEffect */ }
+                                    config = null,
+                                    onSuccess = { }
+                                )
                             } else {
-                                vm.createSectionItem(
-                                    sectionId = sectionId,
+                                vm.createItem(
+                                    templateId = templateId,
+                                    orderIndex = maxOrderIndex + 1,
                                     title = title,
-                                    expectedType = expectedType,
                                     category = category,
-                                    subcategory = subcategory
-                                ) { /* onSuccess handled by LaunchedEffect */ }
+                                    subcategory = subcategory.takeIf { it.isNotBlank() },
+                                    percentage = percentage.replace("%", "").toDoubleOrNull(), // ✅ AGREGADO: Enviar porcentaje
+                                    expectedType = expectedType,
+                                    config = null,
+                                    onSuccess = { }
+                                )
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !loading && title.isNotBlank()
+                        enabled = !loading && title.isNotBlank() && category.isNotBlank()
                     ) {
                         Text(if (isEditing) "Actualizar" else "Crear")
                     }

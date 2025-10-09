@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.RunSummaryDto
@@ -246,6 +248,28 @@ fun HistoryCard(
             Text(r.templateName ?: "Checklist", style = MaterialTheme.typography.titleMedium)
             Text("Tienda: ${r.storeCode ?: "-"}  •  Estado: ${r.status}  •  Avance: $progress", style = MaterialTheme.typography.bodySmall)
             Text("Enviado: $updatedHuman", style = MaterialTheme.typography.bodySmall)
+
+            // ✅ NUEVO: Mostrar quién respondió (solo para SUBMITTED)
+            if (r.status == "SUBMITTED" && r.assignedTo != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        "Respondido por: ${r.assignedTo?.name}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             Spacer(Modifier.height(4.dp))
 
             // Solo mostrar botón borrar según permisos específicos

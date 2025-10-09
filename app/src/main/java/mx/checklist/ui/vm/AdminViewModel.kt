@@ -8,10 +8,6 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import mx.checklist.data.Repo
 import mx.checklist.data.api.dto.*
-import mx.checklist.data.api.dto.SectionPercentageUpdateDto
-import mx.checklist.data.api.dto.ChecklistSectionDto
-import mx.checklist.data.api.dto.SectionTemplateDto
-import mx.checklist.data.api.dto.SectionPercentagesPayload
 
 class AdminViewModel(private val repo: Repo) : ViewModel() {
     fun createSection(checklistId: Long, name: String = "Nueva sección", percentage: Double = 0.0, orderIndex: Int? = null, onSuccess: (() -> Unit)? = null) {
@@ -384,6 +380,11 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
     fun clearError() { _error.value = null }
     fun clearSuccess() { _operationSuccess.value = null }
 
+    // ✅ Limpiar template actual cuando se navega a crear uno nuevo
+    fun clearCurrentTemplate() {
+        _currentTemplate.value = null
+    }
+
     fun loadTemplates() {
         viewModelScope.launch {
             safe("Cargando templates...") {
@@ -407,6 +408,7 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
 
     fun createTemplate(
         name: String,
+        scope: String, // ✅ CAMBIADO: "Auditores" | "Supervisores" (en español)
         items: List<CreateItemTemplateDto> = emptyList(),
         onSuccess: (Long) -> Unit
     ) {
@@ -414,25 +416,32 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
             safe("Creando template...") {
                 val request = CreateTemplateDto(
                     name = name,
+                    scope = scope, // ✅ Enviar scope en español
                     items = items
                 )
                 val result = repo.adminCreateTemplate(request)
+
+                // ✅ WORKAROUND: Crear automáticamente una sección "Items" para mantener compatibilidad con backend
+                // El usuario no la verá, pero es necesaria para que el backend acepte los items
+                try {
+                    val dummySection = SectionTemplateCreateDto(
+                        name = "Items",
+                        percentage = 100.0,
+                        orderIndex = 1
+                    )
+                    repo.createSection(result.id, dummySection)
+                    Log.d("AdminViewModel", "✅ Sección dummy 'Items' creada automáticamente para template ${result.id}")
+                } catch (e: Exception) {
+                    Log.e("AdminViewModel", "⚠️ No se pudo crear sección dummy: ${e.message}")
+                    // No fallar si no se puede crear la sección, el template ya existe
+                }
+
                 _operationSuccess.value = "Template '${result.name}' creado exitosamente"
-                // NO llamar loadTemplates() aquí para evitar navegación no deseada
-                // Convertir CreateTemplateRes a AdminTemplateDto
-                val adminTemplateDto = AdminTemplateDto(
-                    id = result.id,
-                    name = result.name,
-                    scope = null,
-                    version = null,
-                    frequency = null,
-                    isActive = true,
-                    createdAt = null,
-                    updatedAt = null,
-                    sections = emptyList(),
-                    items = emptyList()
-                )
-                _currentTemplate.value = adminTemplateDto
+
+                // Recargar el template completo desde el backend para obtener la sección creada
+                val fullTemplate = repo.adminGetTemplate(result.id)
+                _currentTemplate.value = fullTemplate
+
                 onSuccess(result.id)
             }
         }
@@ -468,13 +477,14 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
     ) {
         viewModelScope.launch {
             safe("Actualizando estado del template...") {
-                // Por ahora, actualizar solo localmente hasta que implementemos el endpoint en el backend
-                val currentTemplate = _currentTemplate.value
-                if (currentTemplate != null) {
-                    _currentTemplate.value = currentTemplate.copy(isActive = isActive)
-                    _operationSuccess.value = "Estado del template actualizado exitosamente"
-                    onSuccess()
-                }
+                // ✅ CORREGIDO: Ahora guarda en el backend usando el endpoint correcto
+                val result = repo.adminUpdateTemplateStatus(templateId, isActive)
+
+                // Actualizar el template localmente con el resultado del backend
+                _currentTemplate.value = repo.adminGetTemplate(templateId)
+
+                _operationSuccess.value = result.message
+                onSuccess()
             }
         }
     }
@@ -501,6 +511,7 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
         title: String,
         category: String?,
         subcategory: String?,
+        percentage: Double?,
         expectedType: String,
         config: Map<String, Any?>?,
         onSuccess: () -> Unit
@@ -512,14 +523,30 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
                     _error.value = "Error: El templateId es 0. No se puede crear el ítem."
                     return@safe
                 }
+
+                // ✅ WORKAROUND: Obtener el sectionId de la primera sección disponible
+                // Esto mantiene compatibilidad con el backend que requiere sectionId
+                val currentTemplate = _currentTemplate.value
+                val firstSectionId = currentTemplate?.sections?.firstOrNull()?.id
+
+                if (firstSectionId == null) {
+                    _error.value = "Error: No hay secciones disponibles en el template. Recarga el template."
+                    Log.e("AdminViewModel", "❌ No se encontró sectionId para crear item")
+                    return@safe
+                }
+
                 val request = CreateItemTemplateDto(
+                    sectionId = firstSectionId, // ✅ Usar sectionId de la sección automática
                     orderIndex = orderIndex,
                     title = title,
                     category = category,
                     subcategory = subcategory,
+                    percentage = percentage,
                     expectedType = expectedType,
                     config = config
                 )
+
+                Log.d("AdminViewModel", "Creando item con sectionId=$firstSectionId: $request")
                 repo.adminCreateItem(templateId, request)
                 _operationSuccess.value = "Item '$title' creado exitosamente"
                 loadTemplate(templateId) // Refrescar template actual
@@ -535,6 +562,7 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
         title: String?,
         category: String?,
         subcategory: String?,
+        percentage: Double?, // ✅ AGREGADO: Parámetro de porcentaje
         expectedType: String?,
         config: Map<String, Any?>?,
         onSuccess: () -> Unit
@@ -546,6 +574,7 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
                     title = title,
                     category = category,
                     subcategory = subcategory,
+                    percentage = percentage, // ✅ AGREGADO: Incluir en el request
                     expectedType = expectedType,
                     config = config
                 )

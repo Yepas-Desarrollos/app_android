@@ -15,8 +15,8 @@ object NavRoutes {
     // Definición de rutas para usar en composable()
     // Formato requerido por Compose Navigation - NO MODIFICAR estas constantes
     const val ADMIN_TEMPLATE_FORM = "admin/templates/form/{templateId}"
-    // MODIFICADO: Añadir sectionId a la ruta del item
-    const val ADMIN_ITEM_FORM = "admin/templates/{templateId}/sections/{sectionId}/items/form/{itemId}" 
+    //  MODIFICADO: Eliminar sectionId - sistema plano
+    const val ADMIN_ITEM_FORM = "admin/templates/{templateId}/items/form/{itemId}"
     const val ADMIN_SECTION_FORM = "admin/templates/{templateId}/sections/form/{sectionId}"
     const val ADMIN_ASSIGNMENTS = "admin/assignments"
 
@@ -30,9 +30,8 @@ object NavRoutes {
     fun checklistStructure(checklistId: Long) = "checklist_structure/$checklistId"
     fun sectionItems(sectionId: Long) = "section_items/$sectionId"
 
-    // Admin route helpers - Asegurando que usen exactamente los mismos nombres de parámetros
-    // que las constantes de ruta definidas arriba
-    
+    // Admin route helpers
+
     /**
      * Genera una ruta para el formulario de template con el ID especificado
      * @param templateId ID del template, o null para crear un nuevo template
@@ -45,14 +44,12 @@ object NavRoutes {
     /**
      * Genera una ruta para el formulario de ítem con el ID especificado
      * @param templateId ID del template al que pertenece el ítem
-     * @param sectionId ID de la sección a la que pertenece el ítem  // <-- AÑADIDO
      * @param itemId ID del ítem, o null para crear un nuevo ítem
      */
-    // MODIFICADO: Añadir sectionId a la función helper
-    fun adminItemForm(templateId: Long, sectionId: Long, itemId: Long? = null): String {
+    //  MODIFICADO: Eliminar sectionId - sistema plano con categorías
+    fun adminItemForm(templateId: Long, itemId: Long? = null): String {
         val itemIdValue = itemId ?: -1
-        // MODIFICADO: Incluir sectionId en la construcción de la ruta
-        return "admin/templates/$templateId/sections/$sectionId/items/form/$itemIdValue"
+        return "admin/templates/$templateId/items/form/$itemIdValue"
     }
     
     /**
@@ -62,8 +59,6 @@ object NavRoutes {
      */
     fun adminSectionForm(templateId: Long, sectionId: Long? = null): String {
         val sectionIdValue = sectionId ?: -1
-        // IMPORTANTE: Usamos la misma estructura exacta definida en ADMIN_SECTION_FORM 
-        // solo sustituyendo los valores dinámicos
         return "admin/templates/$templateId/sections/form/$sectionIdValue"
     }
 }

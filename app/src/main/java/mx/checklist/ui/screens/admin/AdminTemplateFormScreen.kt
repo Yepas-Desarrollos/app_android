@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.FieldType
 import mx.checklist.data.api.dto.ItemTemplateDto
+import mx.checklist.data.auth.AuthState
 import mx.checklist.ui.vm.AdminViewModel
 import kotlin.math.roundToInt
 
@@ -32,8 +33,7 @@ fun AdminTemplateFormScreen(
     onBack: () -> Unit,
     onSaved: () -> Unit,
     onCreateItem: (Long) -> Unit,
-    onEditItem: (Long, Long) -> Unit,
-    onCreateSection: (Long) -> Unit // Nuevo parámetro para crear secciones
+    onEditItem: (Long, Long) -> Unit
 ) {
     // Estados locales del formulario
     var name by remember { mutableStateOf("") }
@@ -51,20 +51,37 @@ fun AdminTemplateFormScreen(
     val isEditing = currentTemplateId != null
     val title = if (isEditing) "Editar Template" else "Crear Template"
 
-    // Cargar template si estamos editando (solo una vez)
+    // ✅ CAMBIADO: Inferir automáticamente el scope en español según el rol del usuario
+    val targetScope = remember {
+        when (AuthState.roleCode) {
+            "MGR_PREV" -> "Auditores"      // MGR Prevención administra Auditores
+            "MGR_OPS" -> "Supervisores"    // MGR Operaciones administra Supervisores
+            "ADMIN" -> "Auditores"         // ADMIN por defecto crea para Auditores
+            else -> "Auditores"
+        }
+    }
+
+    // Cargar template si estamos editando, limpiar si estamos creando
     LaunchedEffect(currentTemplateId) {
         val templateIdToLoad = currentTemplateId
         if (templateIdToLoad != null && templateIdToLoad != 0L) {
             vm.loadTemplate(templateIdToLoad)
+        } else {
+            vm.clearCurrentTemplate()
         }
     }
 
-    // Actualizar campos cuando se carga el template (solo una vez por template)
+    // Actualizar campos cuando se carga el template
     LaunchedEffect(currentTemplate?.id, currentTemplate?.name, currentTemplate?.isActive) {
-        val template = currentTemplate // Crear variable local para permitir smart cast
-        template?.let {
-            name = it.name
-            isActive = it.isActive
+        val template = currentTemplate
+        if (template != null) {
+            name = template.name
+            isActive = template.isActive
+            //targetRoleCode = template.targetRoleCode ?: "ROL_AUD" // ✅ NUEVO: Cargar rol objetivo
+        } else if (currentTemplateId == null) {
+            name = ""
+            isActive = true
+            //targetRoleCode = "ROL_AUD" // ✅ NUEVO: Rol objetivo por defecto al crear
         }
     }
 
@@ -100,15 +117,8 @@ fun AdminTemplateFormScreen(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
-                val friendlyMsg = when {
-                    err.contains("404", ignoreCase = true) || err.contains("Not Found", ignoreCase = true) ->
-                        "No se pudo completar la acción: el recurso ya no existe o fue eliminado previamente."
-                    err.contains("DELETE", ignoreCase = true) ->
-                        "No se pudo eliminar la sección. Puede que ya haya sido eliminada o no exista."
-                    else -> "Error: $err"
-                }
                 Text(
-                    text = friendlyMsg,
+                    text = "Error: $err",
                     modifier = Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -162,6 +172,25 @@ fun AdminTemplateFormScreen(
                     }
                 }
 
+                // Información del rol objetivo (solo lectura)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Rol objetivo",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Mostrar texto con el rol seleccionado
+                    Text(
+                        text = targetScope,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -176,38 +205,32 @@ fun AdminTemplateFormScreen(
                     Button(
                         onClick = {
                             vm.clearError()
-                            val templateId = currentTemplateId // Crear variable local para permitir smart cast
+                            val templateId = currentTemplateId
                             if (isEditing && templateId != null) {
                                 // Actualizar nombre si cambió
                                 if (currentTemplate?.name != name) {
-                                    vm.updateTemplate(templateId = templateId, name = name.takeIf { it.isNotBlank() }) {
-                                        // Mantener en la misma pantalla después de actualizar
-                                    }
+                                    vm.updateTemplate(templateId = templateId, name = name.takeIf { it.isNotBlank() }) {}
                                 }
                                 // Actualizar estado activo/inactivo si cambió
                                 if (currentTemplate?.isActive != isActive) {
-                                    vm.updateTemplateStatus(templateId, isActive) {
-                                        // No recargar template innecesariamente
-                                    }
+                                    vm.updateTemplateStatus(templateId, isActive) {}
                                 }
+                                // NOTA: targetRoleCode no se puede cambiar después de crear el template
                             } else {
-                                // Solo permitir crear si no estamos ya creando
+                                // Crear nuevo template
                                 if (!isCreatingTemplate && name.isNotBlank()) {
                                     isCreatingTemplate = true
-                                    vm.createTemplate(name = name) { newTemplateId ->
-                                        // Actualizar el estado local para cambiar a modo edición
+                                    vm.createTemplate(name = name, scope = targetScope) { newTemplateId ->
                                         currentTemplateId = newTemplateId
                                         isCreatingTemplate = false
-                                        // Cargar el template recién creado
                                         vm.loadTemplate(newTemplateId)
-                                        // Llamar onSaved para navegar de vuelta a la lista
                                         onSaved()
                                     }
                                 }
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !loading && !isCreatingTemplate && name.isNotBlank() // Bloquear cuando está creando
+                        enabled = !loading && !isCreatingTemplate && name.isNotBlank()
                     ) {
                         Text(
                             text = when {
@@ -221,7 +244,7 @@ fun AdminTemplateFormScreen(
             }
         }
 
-        // Sección de secciones (solo para templates existentes)
+        // ✅ NUEVO: Sección de items agrupados por categoría (solo para templates existentes)
         currentTemplate?.let { template ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -233,111 +256,94 @@ fun AdminTemplateFormScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Obtener todos los items de todas las secciones
+                        val allItems = template.sections.flatMap { it.items }
+
                         Text(
-                            text = "Secciones del Template (${template.sections.size})",
+                            text = "Items del Template (${allItems.size})",
                             style = MaterialTheme.typography.titleMedium
                         )
                         FilledTonalButton(
                             onClick = {
                                 vm.clearError()
                                 vm.clearSuccess()
-                                onCreateSection(template.id)
+                                onCreateItem(template.id)
                             },
                             modifier = Modifier.height(48.dp)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Agregar sección")
+                            Text("Agregar item")
                         }
                     }
 
-                    // Calcular valores directamente
-                    val sections = template.sections
-                    val totalSectionPercentage = sections.sumOf { it.percentage ?: 0.0 }
-                    val isSectionPercentageValid = totalSectionPercentage.roundToInt() == 100
+                    // Agrupar items por categoría
+                    val itemsByCategory = remember(template.sections) {
+                        template.sections
+                            .flatMap { it.items }
+                            .groupBy { it.category ?: "Sin categoría" }
+                            .toSortedMap()
+                    }
 
-                    // Mostrar advertencia si la suma de porcentajes no es 100
-                    if (!isSectionPercentageValid && sections.isNotEmpty()) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    if (itemsByCategory.isEmpty()) {
+                        Text(
+                            text = "No hay items creados. Presiona 'Agregar item' para crear el primero.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.heightIn(min = 50.dp, max = 500.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "La suma de porcentajes de las secciones debe ser 100%. Actual: ${"%.2f".format(totalSectionPercentage)}%",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-                    }
+                            itemsByCategory.forEach { (categoryName, categoryItems) ->
+                                // Encabezado de categoría
+                                item(key = "category_$categoryName") {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(12.dp)
+                                        ) {
+                                            Text(
+                                                text = categoryName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                            Text(
+                                                text = "${categoryItems.size} item(s)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
+                                }
 
-                    // Botón para distribuir porcentajes entre secciones
-                    if (sections.isNotEmpty()) {
-                        Button(
-                            onClick = { vm.distributeSectionPercentages(template.id) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Distribuir porcentajes equitativamente entre secciones")
-                        }
-                    }
-
-                    // LISTADO DE SECCIONES
-                    Text(
-                        text = if (sections.isEmpty()) "No hay secciones creadas" else "Secciones (${sections.size}):",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    LazyColumn(
-                        modifier = Modifier.heightIn(min = 50.dp, max = 300.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (sections.isEmpty()) {
-                            item {
-                                Text(
-                                    text = "Presiona 'Agregar sección' para crear la primera sección",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
-                        } else {
-                            items(
-                                items = sections.sortedBy { it.orderIndex },
-                                key = { section -> section.id ?: 0L }
-                            ) { section ->
-                                SectionCard(
-                                    section = section,
-                                    onEdit = { onEditItem(template.id, section.id ?: 0L) }, // Editar SECCIÓN
-                                    onDelete = { vm.deleteSection(section.id ?: 0L) {
-                                        vm.loadTemplate(template.id)
-                                    } },
-                                    onCreateItem = { sectionId -> onCreateItem(sectionId) },
-                                    onEditItem = { itemId ->
-                                        // Editar ITEM: usar el callback correcto con templateId y itemId
-                                        if (itemId != null && itemId > 0) {
-                                            // Buscar la sección que contiene este item
-                                            val sectionWithItem = template.sections.find { s ->
-                                                s.items.any { i -> i.id == itemId }
-                                            }
-                                            sectionWithItem?.let { sec ->
-                                                // Navegar correctamente al editor de items
-                                                // onEditItem espera (templateId, itemId)
+                                // Items de esta categoría
+                                items(
+                                    items = categoryItems.sortedBy { it.orderIndex },
+                                    key = { item -> item.id ?: 0L }
+                                ) { item ->
+                                    AdminTemplateItemCard(
+                                        item = item,
+                                        onEdit = {
+                                            item.id?.let { itemId ->
                                                 onEditItem(template.id, itemId)
                                             }
-                                        }
-                                    },
-                                    onDeleteItem = { itemId ->
-                                        if (itemId != null && itemId > 0) {
-                                            section.id?.let { sectionId ->
-                                                vm.deleteSectionItem(sectionId, itemId) {
+                                        },
+                                        onDelete = {
+                                            item.id?.let { itemId ->
+                                                vm.deleteItem(template.id, itemId) {
                                                     vm.loadTemplate(template.id)
                                                 }
                                             }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -357,9 +363,13 @@ fun AdminTemplateFormScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        templateId?.let { tid -> if (item.id != null && item.id > 0) vm.deleteItem(tid, item.id!!) {
-                            showDeleteDialog = null
-                        } }
+                        templateId?.let { tid ->
+                            if (item.id != null && item.id > 0) {
+                                vm.deleteItem(tid, item.id) {
+                                    showDeleteDialog = null
+                                }
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
@@ -407,14 +417,9 @@ private fun AdminTemplateItemCard(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    if (!item.category.isNullOrBlank() || !item.subcategory.isNullOrBlank()) {
-                        val categoryText = listOfNotNull(
-                            item.category?.takeIf { it.isNotBlank() },
-                            item.subcategory?.takeIf { it.isNotBlank() }
-                        ).joinToString(" • ")
-
+                    if (!item.subcategory.isNullOrBlank()) {
                         Text(
-                            text = categoryText,
+                            text = "Subcategoría: ${item.subcategory}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -434,90 +439,6 @@ private fun AdminTemplateItemCard(
                             Icons.Default.Delete,
                             contentDescription = "Eliminar",
                             tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SectionCard(
-    section: mx.checklist.data.api.dto.SectionTemplateDto,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onCreateItem: (Long) -> Unit = {}, // Callback para crear un ítem en esta sección
-    onEditItem: (Long) -> Unit = {},   // Callback para editar un ítem específico
-    onDeleteItem: (Long) -> Unit = {}  // Callback para eliminar un ítem específico
-) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "#${section.orderIndex} - ${section.name}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "Porcentaje: ${section.percentage}%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Row {
-                    IconButton(onClick = onEdit) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Editar sección",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Eliminar sección",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-
-            // Botón para agregar ítem
-            Button(
-                onClick = { section.id?.let { onCreateItem(it) } },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Agregar ítem")
-            }
-
-            // Listado de ítems de esta sección
-            if (section.items.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Ítems (${section.items.size})",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    section.items.forEach { item ->
-                        AdminTemplateItemCard(
-                            item = item,
-                            onEdit = { item.id?.let { onEditItem(it) } },
-                            onDelete = { item.id?.let { onDeleteItem(it) } }
                         )
                     }
                 }
