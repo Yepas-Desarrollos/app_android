@@ -89,7 +89,7 @@ fun ItemsScreen(
 
     val shownTemplateName = templateName ?: runInfo?.templateName
 
-    // ✅ CORREGIDO: Agrupar items por categoría sin depender de sectionId
+    //  CORREGIDO: Agrupar items por categoría sin depender de sectionId
     val itemsBySection = remember(items) {
         items
             .groupBy { it.itemTemplate?.category ?: "Sin categoría" }
