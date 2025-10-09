@@ -175,10 +175,6 @@ fun AppNavHost(
             if (ENABLE_PAGINATION_OPTIMIZATIONS) {
                 SimpleOptimizedAdminScreen(
                     adminVM = adminVM,
-                    runsVM = runsVM,
-                    onCreateTemplate = { nav.navigate(NavRoutes.adminTemplateForm(null)) },
-                    onEditTemplate = { templateId -> nav.navigate(NavRoutes.adminTemplateForm(templateId)) },
-                    onViewTemplate = { templateId -> nav.navigate(NavRoutes.adminTemplateForm(templateId)) },
                     onAssignments = { nav.navigate(NavRoutes.ADMIN_ASSIGNMENTS) },
                     onTemplatesAdmin = { nav.navigate(NavRoutes.ADMIN_TEMPLATES_ADMIN) }
                 )

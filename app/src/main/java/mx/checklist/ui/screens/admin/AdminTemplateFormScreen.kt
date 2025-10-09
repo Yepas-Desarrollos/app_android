@@ -49,7 +49,7 @@ fun AdminTemplateFormScreen(
     val success by vm.operationSuccess.collectAsStateWithLifecycle()
 
     val isEditing = currentTemplateId != null
-    val title = if (isEditing) "Editar Template" else "Crear Template"
+    val title = if (isEditing) "Editar Checklist" else "Crear Checklist"
 
     // ✅ CAMBIADO: Inferir automáticamente el scope en español según el rol del usuario
     val targetScope = remember {
@@ -132,14 +132,14 @@ fun AdminTemplateFormScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Información del Template",
+                    text = "Información del Checklist",
                     style = MaterialTheme.typography.titleMedium
                 )
 
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nombre del Template *") },
+                    label = { Text("Nombre del Checklist *") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !loading,
                     isError = name.isBlank()

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -82,8 +83,8 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 HomeCard(
-                    title = "Nuevo\nChecklist",
-                    icon = Icons.Default.AddCircle,
+                    title = "Ejecutar\nChecklist",
+                    icon = Icons.Default.PlayArrow, // Icono material incluido
                     onClick = onNuevaCorrida,
                     modifier = Modifier.weight(1f)
                 )

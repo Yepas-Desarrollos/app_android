@@ -6,7 +6,8 @@ enum class FieldType(val displayName: String, val value: String) {
     NUMBER("Número", "NUMBER"),
     SINGLE_CHOICE("Opción única", "SINGLE_CHOICE"),
     MULTIPLE_CHOICE("Opción múltiple", "MULTIPLE_CHOICE"),
-    PHOTO("Foto", "PHOTO");
+    PHOTO("Foto", "PHOTO"),
+    BOOLEAN("Sí / No", "BOOLEAN");
 
     companion object {
         fun fromValue(value: String): FieldType? {
@@ -36,6 +37,10 @@ object FieldTypeDefaults {
                 "minCount" to 1,
                 "maxCount" to 5,
                 "required" to true
+            )
+
+            FieldType.BOOLEAN -> mapOf(
+                "default" to false
             )
         }
     }

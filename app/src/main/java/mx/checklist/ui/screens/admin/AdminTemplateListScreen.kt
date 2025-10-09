@@ -52,7 +52,7 @@ fun AdminTemplateListScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Gestión de Templates",
+                text = "Gestión de Checklists",
                 style = MaterialTheme.typography.headlineMedium
             )
             
@@ -60,7 +60,7 @@ fun AdminTemplateListScreen(
                 onClick = onCreateTemplate,
                 modifier = Modifier.size(56.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Crear Template")
+                Icon(Icons.Default.Add, contentDescription = "Crear Checklist")
             }
         }
 
@@ -138,7 +138,7 @@ fun AdminTemplateListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No hay templates creados.\nPresiona + para crear el primero.",
+                    text = "No hay checklists creados.\nPresiona + para crear el primero.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -150,9 +150,9 @@ fun AdminTemplateListScreen(
     showDeleteDialog?.let { template ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Eliminar Template") },
-            text = { 
-                Text("¿Estás seguro de que quieres eliminar el template '${template.name}'?\n\nEsta acción no se puede deshacer.") 
+            title = { Text("Eliminar Checklist") },
+            text = {
+                Text("¿Estás seguro de que quieres eliminar el checklist '${template.name}'?\n\nEsta acción no se puede deshacer.")
             },
             confirmButton = {
                 Button(
@@ -251,7 +251,7 @@ private fun TemplateCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (template.isActive) "Template Activo" else "Template Inactivo",
+                    text = if (template.isActive) "Checklist Activo" else "Checklist Inactivo",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (template.isActive) 
                         MaterialTheme.colorScheme.primary 

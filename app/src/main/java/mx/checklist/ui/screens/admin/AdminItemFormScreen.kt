@@ -239,7 +239,7 @@ fun AdminItemFormScreen(
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
-                        value = fieldTypes.find { it.first == expectedType }?.second ?: "Texto",
+                        value = fieldTypes[0].second,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Tipo de campo *") },
@@ -254,15 +254,13 @@ fun AdminItemFormScreen(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        fieldTypes.forEach { (value, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    expectedType = value
-                                    expanded = false
-                                }
-                            )
-                        }
+                        DropdownMenuItem(
+                            text = { Text("Sí / No") },
+                            onClick = {
+                                expectedType = "BOOLEAN"
+                                expanded = false
+                            }
+                        )
                     }
                 }
 

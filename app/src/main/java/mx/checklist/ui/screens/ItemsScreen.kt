@@ -103,20 +103,43 @@ fun ItemsScreen(
     var showSubmittedDialog by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (!shownTemplateName.isNullOrBlank()) {
-            Text("Checklist: $shownTemplateName", style = MaterialTheme.typography.titleLarge)
-            Text("ID #$runId — Tienda $storeCode", style = MaterialTheme.typography.bodyMedium)
-        } else {
-            Text("Checklist #$runId ($storeCode)", style = MaterialTheme.typography.headlineSmall)
+        // Encabezado visual igual que templates, pero con color neutro y items respondidos dentro
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface) // Cambiado de primaryContainer a surface
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = shownTemplateName ?: "Checklist",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface // Cambiado para contraste con surface
+            )
+            Text(
+                text = "Tienda: $storeCode",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "$answered / ${items.size} items respondidos",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (error != null) {
+                Text("Error: $error", color = MaterialTheme.colorScheme.error)
+            }
         }
 
         if (isReadOnly) Text("Checklist enviado (solo lectura)", color = MaterialTheme.colorScheme.primary)
         if (error != null) Text("Error: $error", color = MaterialTheme.colorScheme.error)
 
-        Text("$answered / ${items.size} items respondidos")
         LinearProgressIndicator(progress = { answered / total.toFloat() }, modifier = Modifier.fillMaxWidth())
 
         if (loading && items.isEmpty()) {
@@ -184,7 +207,13 @@ fun ItemsScreen(
                         vm.updateError(message ?: "Hay ítems pendientes o con errores de evidencia.")
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) { Text(if (loading) "Enviando…" else "Enviar checklist") }
         }
     }
@@ -266,7 +295,7 @@ private fun ItemCard(
     var status by remember(item.id) { mutableStateOf(item.responseStatus.orEmpty()) }
     var respText by remember(item.id) { mutableStateOf(item.responseText.orEmpty()) }
     var numberStr by remember(item.id) { mutableStateOf(item.responseNumber?.toString().orEmpty()) }
-    // ✅ CORREGIDO: Usar responseStatus en lugar de justSaved local
+    //  CORREGIDO: Usar responseStatus en lugar de justSaved local
     val isAlreadySaved = !item.responseStatus.isNullOrEmpty()
 
     LaunchedEffect(item.id, item.responseStatus, item.responseText, item.responseNumber) {
@@ -367,7 +396,9 @@ private fun ItemCard(
                 initialCategory.takeIf { it.isNotBlank() },
                 initialSubcategory.takeIf { it.isNotBlank() }
             ).joinToString("  •  ")
-            if (meta.isNotBlank()) Text(meta, style = MaterialTheme.typography.bodySmall)
+            if (meta.isNotBlank()) {
+                Text(meta, style = MaterialTheme.typography.bodySmall)
+            }
 
             photoEvidenceRequiredText?.let {
                 val currentMinCount = extractMinCount(evidenceConfig, status, item.itemTemplate?.expectedType)

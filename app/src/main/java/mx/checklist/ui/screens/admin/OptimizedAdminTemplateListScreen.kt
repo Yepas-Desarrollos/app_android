@@ -51,23 +51,21 @@ fun OptimizedAdminTemplateListScreen(
         ) {
             Column {
                 Text(
-                    text = "Gestión de Templates",
+                    text = "Gestión de Checklists",
                     style = MaterialTheme.typography.headlineMedium
                 )
                 if (templates.isNotEmpty()) {
                     Text(
-                        text = "${templates.size} templates disponibles",
+                        text = "${templates.size} checklists disponibles",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            
-            FloatingActionButton(
-                onClick = onCreateTemplate,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Crear Template")
+            Button(onClick = onCreateTemplate) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Crear nuevo checklist")
             }
         }
 
@@ -120,7 +118,7 @@ fun OptimizedAdminTemplateListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No hay templates creados",
+                    text = "No hay checklists creados",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -149,9 +147,9 @@ fun OptimizedAdminTemplateListScreen(
     showDeleteDialog?.let { template ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Eliminar Template") },
-            text = { 
-                Text("¿Estás seguro de que deseas eliminar el template '${template.name}'?\n\nEsta acción no se puede deshacer.")
+            title = { Text("Eliminar Checklist") },
+            text = {
+                Text("¿Estás seguro de que deseas eliminar el checklist '${template.name}'?\n\nEsta acción no se puede deshacer.")
             },
             confirmButton = {
                 Button(

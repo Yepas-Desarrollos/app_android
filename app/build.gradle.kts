@@ -59,43 +59,35 @@ android {
 }
 
 dependencies {
-    // AndroidX base
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose (usando BOM)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material-icons-extended")
-
+    implementation(libs.material.icons.extended)
 
     debugImplementation(libs.androidx.ui.tooling)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Red / almacenamiento
-    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
-    implementation("com.squareup.okhttp3:okhttp")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation(platform(libs.okhttp.bom))
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging.interceptor)
 
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
-    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.moshi)
+    implementation(libs.moshi.kotlin)
 
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation(libs.datastore.preferences)
+    implementation(libs.navigation.compose)
+    implementation(libs.coil.compose)
 
-    // Tests
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.test.junit) // <-- CAMBIADO
-    androidTestImplementation(libs.androidx.test.espresso.core) // <-- CAMBIADO
-
-
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
 }

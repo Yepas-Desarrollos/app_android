@@ -174,6 +174,19 @@ fun LoginScreen(
                     }
                 }
             }
+            // Mostrar la versión al fondo de la pantalla
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 8.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Text(
+                    text = "Versión 1.0.0", // Si tienes una variable de versión, reemplaza aquí
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,7 +70,7 @@ fun TemplatesAdminScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Templates Admin",
+                text = "Checklists Admin",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -83,7 +83,7 @@ fun TemplatesAdminScreen(
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text("Templates") }
+                text = { Text("Checklists") }
             )
             Tab(
                 selected = selectedTab == 1,
@@ -115,8 +115,8 @@ fun TemplatesAdminScreen(
     showDeleteDialog?.let { template ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Eliminar Template") },
-            text = { Text("¿Estás seguro de que quieres eliminar el template '${template.name}'?") },
+            title = { Text("Eliminar Checklist") },
+            text = { Text("¿Estás seguro de que quieres eliminar el checklist '${template.name}'?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -172,12 +172,12 @@ private fun TemplatesTab(
                 )
             ) {
                 Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Crear Template",
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Ejecutar Checklist",
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Crear Nuevo Template", style = MaterialTheme.typography.titleMedium)
+                Text("Ejecutar Checklist", style = MaterialTheme.typography.titleMedium)
             }
         }
         
@@ -252,7 +252,7 @@ private fun TemplatesTab(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No hay templates disponibles",
+                                    text = "No hay checklists disponibles",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -358,22 +358,22 @@ private fun TemplateCard(
                 Row {
                     IconButton(onClick = onView) {
                         Icon(
-                            Icons.Default.List,
-                            contentDescription = "Ver template",
+                            Icons.Default.Visibility,
+                            contentDescription = "Ver checklist",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     IconButton(onClick = onEdit) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Editar template",
+                            contentDescription = "Editar checklist",
                             tint = MaterialTheme.colorScheme.secondary
                         )
                     }
                     IconButton(onClick = onDelete) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Eliminar template",
+                            contentDescription = "Eliminar checklist",
                             tint = MaterialTheme.colorScheme.error
                         )
                     }

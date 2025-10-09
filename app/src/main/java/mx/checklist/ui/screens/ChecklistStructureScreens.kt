@@ -1002,12 +1002,13 @@ fun ItemDialog(
                 )
 
                 Box {
+                    val fieldTypes = listOf(FieldType.BOOLEAN)
                     OutlinedTextField(
-                        value = selectedFieldType.displayName,
+                        value = fieldTypes[0].displayName,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Tipo de campo") },
-                        trailingIcon = { Text(if (expanded) "▲" else "▼") },
+                        trailingIcon = { Text(if (expanded) "\u25b2" else "\u25bc") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = showError,
                         enabled = !isEditing,
@@ -1019,15 +1020,13 @@ fun ItemDialog(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        FieldType.values().forEach { fieldType ->
-                            DropdownMenuItem(
-                                text = { Text(fieldType.displayName) },
-                                onClick = {
-                                    selectedFieldType = fieldType
-                                    expanded = false
-                                }
-                            )
-                        }
+                        DropdownMenuItem(
+                            text = { Text(FieldType.BOOLEAN.displayName) },
+                            onClick = {
+                                selectedFieldType = FieldType.BOOLEAN
+                                expanded = false
+                            }
+                        )
                     }
                 }
             }
