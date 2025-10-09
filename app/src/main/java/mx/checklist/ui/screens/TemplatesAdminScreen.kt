@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -172,12 +173,12 @@ private fun TemplatesTab(
                 )
             ) {
                 Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = "Ejecutar Checklist",
+                    Icons.Default.Add,
+                    contentDescription = "Crear Nuevo Template",
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Ejecutar Checklist", style = MaterialTheme.typography.titleMedium)
+                Text("Crear Nuevo Template", style = MaterialTheme.typography.titleMedium)
             }
         }
         
