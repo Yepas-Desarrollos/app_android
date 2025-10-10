@@ -150,21 +150,16 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             // Validación por tipo
             // (puedes agregar más validaciones según expectedType y config)
 
-            // Construir request con barcode
-            val req = mx.checklist.data.api.dto.RespondReq(
-                responseStatus = status ?: "",
-                responseText = text,
-                responseNumber = number,
-                scannedBarcode = barcode
-            )
+            //  CORREGIDO: Ahora se pasa el parámetro barcode correctamente al repositorio
             safe {
-                val updatedItemDto = repo.respond(itemId, status, text, number)
+                val updatedItemDto = repo.respond(itemId, status, text, number, barcode)
                 _runItems.value = _runItems.value.map { currentItemInList ->
                     if (currentItemInList.id == updatedItemDto.id) {
                         currentItemInList.copy(
                             responseStatus = updatedItemDto.responseStatus,
                             responseText = updatedItemDto.responseText,
                             responseNumber = updatedItemDto.responseNumber,
+                            scannedBarcode = updatedItemDto.scannedBarcode,
                             respondedAt = updatedItemDto.respondedAt
                         )
                     } else {

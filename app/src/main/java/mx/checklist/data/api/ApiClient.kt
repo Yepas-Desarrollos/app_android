@@ -32,7 +32,12 @@ object ApiClient {
     }
 
     private val logging = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        //  SEGURIDAD: Solo loguear en modo debug, nunca en producción
+        level = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE // No loguear tokens ni datos sensibles en producción
+        }
     }
 
     private val moshi = Moshi.Builder()

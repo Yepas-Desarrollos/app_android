@@ -97,7 +97,7 @@ class Repo(
     suspend fun respond(itemId: Long, status: String?, text: String?, number: Double?, barcode: String? = null): RunItemDto {
         val s = requireNotNull(status?.trim()?.takeIf { it.isNotEmpty() }) { "status requerido" }
         val t = text?.trim()?.takeUnless { it.isEmpty() }
-        // Pasar el Double? directamente
+        //  CORREGIDO: Ahora acepta y envía el parámetro barcode al backend
         return api.respond(itemId, RespondReq(s, t, number, barcode))
     }
 
