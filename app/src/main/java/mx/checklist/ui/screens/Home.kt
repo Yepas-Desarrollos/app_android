@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.util.Log
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.data.auth.AuthState
@@ -46,6 +48,17 @@ fun HomeScreen(
     onAdminAccess: (() -> Unit)? = null,
     onLogout: () -> Unit = {}
 ) {
+    // Obtener el estado de autenticación para mostrar el mensaje de bienvenida
+    val authState = authVM?.state?.collectAsStateWithLifecycle()?.value
+
+    // Limpiar el mensaje de bienvenida después de 3 segundos
+    LaunchedEffect(authState?.welcomeMessage) {
+        if (authState?.welcomeMessage != null) {
+            kotlinx.coroutines.delay(3000)
+            authVM?.clearWelcomeMessage()
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -58,6 +71,30 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(32.dp))
+
+            // Mensaje de bienvenida al hacer login
+            authState?.welcomeMessage?.let { message ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        text = message,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // Header
             Text(

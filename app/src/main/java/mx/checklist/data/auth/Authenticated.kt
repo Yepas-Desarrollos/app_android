@@ -86,4 +86,36 @@ data class Authenticated(
             else -> "Usuario"
         }
     }
+
+    /**
+     * Obtiene el nombre formateado para mostrar: Nombre + Primera letra del apellido
+     * Ejemplo: "Rodriguez Perez Juan Carlos" → "Juan R."
+     * Formato BD: Apellido(s) + Nombre(s)
+     */
+    fun getDisplayName(): String {
+        if (fullName.isNullOrBlank()) return "Usuario"
+
+        val parts = fullName.trim().split("\\s+".toRegex())
+
+        // Si solo hay una palabra, retornarla
+        if (parts.size == 1) return parts[0]
+
+        // Estrategia mejorada:
+        // Los apellidos típicamente son las primeras 2 palabras
+        // Los nombres son las siguientes palabras
+        // Ejemplo: "DEL TORO BARRAGAN AMADO EMILIO"
+        // Apellidos: "DEL TORO" (o podría ser "DEL TORO BARRAGAN")
+        // Nombres: "AMADO EMILIO"
+
+        // Buscar el primer nombre (asumiendo máximo 2-3 palabras para apellidos)
+        val firstName = when {
+            parts.size >= 4 -> parts[3] // Si hay 4+ palabras, la 4ta es probablemente el primer nombre
+            parts.size == 3 -> parts[2] // Si hay 3, la 3ra es el nombre
+            else -> parts.last() // Fallback: última palabra
+        }
+
+        val lastNameInitial = parts.first().first().uppercaseChar()
+
+        return "$firstName $lastNameInitial."
+    }
 }

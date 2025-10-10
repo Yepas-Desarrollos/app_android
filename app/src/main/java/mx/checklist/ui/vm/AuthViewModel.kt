@@ -14,7 +14,8 @@ import mx.checklist.data.api.ApiClient
 data class LoginState(
     val loading: Boolean = false,
     val error: String? = null,
-    val authenticated: Authenticated? = null
+    val authenticated: Authenticated? = null,
+    val welcomeMessage: String? = null
 )
 
 /**
@@ -68,7 +69,8 @@ class AuthViewModel(private val repo: Repo) : ViewModel() {
                 
                 Log.d("AuthViewModel", "🔐 Login exitoso - token: ${auth.token?.take(20)}...")
                 Log.d("AuthViewModel", "🔐 Login exitoso - roleCode: ${auth.roleCode}")
-                
+                Log.d("AuthViewModel", "🔐 Login exitoso - fullName: ${auth.fullName}")
+
                 // Actualizar AuthState global
                 AuthState.token = auth.token
                 AuthState.roleCode = auth.roleCode
@@ -78,13 +80,28 @@ class AuthViewModel(private val repo: Repo) : ViewModel() {
                 // IMPORTANTE: Sincronizar token con ApiClient
                 ApiClient.setToken(auth.token)
                 
-                _state.value = LoginState(authenticated = auth)
+                // Crear mensaje de bienvenida usando el nombre formateado
+                val displayName = auth.getDisplayName()
+                val welcomeMessage = "¡Bienvenido, $displayName!"
+
+                Log.d("AuthViewModel", "👋 Mensaje de bienvenida: $welcomeMessage")
+
+                _state.value = LoginState(authenticated = auth, welcomeMessage = welcomeMessage)
+
+                // Navegar inmediatamente a Home donde se mostrará el mensaje
                 onOk()
             } catch (t: Throwable) {
                 Log.d("AuthViewModel", "❌ Error en login: ${t.message}")
                 _state.value = LoginState(error = t.message ?: "Error de login")
             }
         }
+    }
+
+    /**
+     * Limpiar el mensaje de bienvenida
+     */
+    fun clearWelcomeMessage() {
+        _state.value = _state.value.copy(welcomeMessage = null)
     }
 
     fun logout(onComplete: () -> Unit = {}) {

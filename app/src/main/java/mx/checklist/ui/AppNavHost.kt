@@ -56,6 +56,7 @@ fun AppNavHost(
     val currentRoleCode = authState.authenticated?.roleCode
     val isAdmin = currentRoleCode in listOf("ADMIN", "MGR_PREV", "MGR_OPS")
     
+    // Navegar a HOME si está autenticado
     val startDestination = if (authState.authenticated != null) {
         NavRoutes.HOME
     } else {

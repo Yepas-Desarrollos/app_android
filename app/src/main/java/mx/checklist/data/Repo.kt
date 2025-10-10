@@ -30,16 +30,19 @@ class Repo(
         val token = res.access_token ?: throw IllegalStateException("Backend no devolvió access_token")
         val roleCode = res.roleCode ?: throw IllegalStateException("Backend no devolvió roleCode")
         
-        // Crear objeto Authenticated con información básica por ahora
+        // Crear objeto Authenticated con toda la información disponible del backend
         val auth = Authenticated(
             token = token, 
-            roleCode = roleCode
-            // TODO: Agregar userId, email, fullName cuando el backend los devuelva
+            roleCode = roleCode,
+            userId = res.userId,
+            email = res.email,
+            fullName = res.fullName
         )
         
         Log.d("Repo", "📦 Authenticated object - token: ${auth.token.take(20)}...")
         Log.d("Repo", "📦 Authenticated object - roleCode: ${auth.roleCode}")
-        
+        Log.d("Repo", "📦 Authenticated object - fullName: ${auth.fullName}")
+
         tokenStore.save(auth)
         Log.d("Repo", "💾 TokenStore.save() llamado con auth")
         
