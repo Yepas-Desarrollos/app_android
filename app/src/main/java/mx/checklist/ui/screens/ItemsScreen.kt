@@ -434,7 +434,7 @@ private fun ItemCard(
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(attachmentsForThisItem, key = { it.id }) { att ->
                                 Box(modifier = Modifier.size(100.dp)) {
-                                    val imageModel = att.localUri ?: "http://172.16.16.22:3000${att.url}"
+                                    val imageModel = att.localUri ?: att.url
                                     Image(
                                         painter = rememberAsyncImagePainter(imageModel),
                                         contentDescription = "Foto adjunta ${att.id}",
