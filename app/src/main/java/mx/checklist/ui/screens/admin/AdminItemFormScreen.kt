@@ -28,12 +28,13 @@ fun AdminItemFormScreen(
 ) {
     // Estados locales del formulario
     var title by remember { mutableStateOf(initialTitle) }
-    var expectedType by remember { mutableStateOf(initialExpectedType) } // ✅ Usar valor inicial pasado
+    var expectedType by remember { mutableStateOf(initialExpectedType) } //  Usar valor inicial pasado
     var category by remember { mutableStateOf(initialCategory) }
     var subcategory by remember { mutableStateOf(initialSubcategory) }
-    var percentage by remember { mutableStateOf("") } // ✅ NUEVO: Campo de porcentaje
+    var percentage by remember { mutableStateOf("") } //  NUEVO: Campo de porcentaje
+    var itemConfig by remember { mutableStateOf<Map<String, Any?>?>(null) } //  NUEVO: Guardar config del item
     var expanded by remember { mutableStateOf(false) }
-    var isDataLoaded by remember { mutableStateOf(false) } // ✅ NUEVO: Flag para controlar carga única
+    var isDataLoaded by remember { mutableStateOf(false) } //  NUEVO: Flag para controlar carga única
 
     // Estados del ViewModel
     val loading by vm.loading.collectAsStateWithLifecycle()
@@ -94,6 +95,7 @@ fun AdminItemFormScreen(
                     category = item.category ?: ""
                     subcategory = item.subcategory ?: ""
                     percentage = item.percentage?.toString() ?: ""
+                    itemConfig = item.config //  NUEVO: Cargar config del item
                     isDataLoaded = true
 
                     println("  - title: '${item.title}' -> cargado: '$title'")
@@ -210,7 +212,7 @@ fun AdminItemFormScreen(
                     enabled = !loading
                 )
 
-                // ✅ NUEVO: Campo para porcentaje (0-100)
+                //  NUEVO: Campo para porcentaje (0-100)
                 OutlinedTextField(
                     value = percentage,
                     onValueChange = {
@@ -307,7 +309,7 @@ fun AdminItemFormScreen(
                                     subcategory = subcategory.takeIf { it.isNotBlank() },
                                     percentage = percentage.replace("%", "").toDoubleOrNull(), // ✅ AGREGADO: Parsear porcentaje
                                     expectedType = expectedType,
-                                    config = null,
+                                    config = itemConfig, //  NUEVO: Enviar config del item
                                     onSuccess = { }
                                 )
                             } else {
