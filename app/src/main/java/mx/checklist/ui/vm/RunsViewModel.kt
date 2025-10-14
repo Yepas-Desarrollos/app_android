@@ -207,9 +207,20 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
                     // 3. Al tener éxito, refrescar la lista desde el servidor
                     val newAttachments = repo.listAttachments(itemId)
+
+                    // ✅ MEJORADO: Preservar el localUri en el attachment más reciente para transición suave
+                    val updatedAttachments = newAttachments.map { serverAtt ->
+                        // Si este es el attachment más reciente (último en la lista), preservar el localUri
+                        if (serverAtt == newAttachments.lastOrNull()) {
+                            serverAtt.copy(localUri = localUri)
+                        } else {
+                            serverAtt
+                        }
+                    }
+
                     _runItems.value = _runItems.value.map { runItem ->
                         if (runItem.id == itemId) {
-                            runItem.copy(attachments = newAttachments)
+                            runItem.copy(attachments = updatedAttachments)
                         } else {
                             runItem
                         }

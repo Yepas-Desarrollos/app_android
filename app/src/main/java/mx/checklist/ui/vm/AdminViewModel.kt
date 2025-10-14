@@ -569,6 +569,9 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
     ) {
         viewModelScope.launch {
             safe("Actualizando item...") {
+                // ✅ Normalizar el config para convertir "type": "photo" a "type": "PHOTO"
+                val normalizedConfig = normalizeConfig(config)
+
                 val request = UpdateItemTemplateDto(
                     orderIndex = orderIndex,
                     title = title,
@@ -576,7 +579,7 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
                     subcategory = subcategory,
                     percentage = percentage, // ✅ AGREGADO: Incluir en el request
                     expectedType = expectedType,
-                    config = config
+                    config = normalizedConfig // ✅ Usar config normalizado
                 )
                 repo.adminUpdateItem(templateId, itemId, request)
                 _operationSuccess.value = "Item actualizado exitosamente"
@@ -612,6 +615,25 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
                     _error.value = "Error al eliminar corrida"
                 }
             }
+        }
+    }
+
+    /**
+     * Normaliza el config de un item para asegurar que el type de evidencia esté en mayúsculas
+     */
+    private fun normalizeConfig(config: Map<String, Any?>?): Map<String, Any?>? {
+        if (config == null) return null
+
+        val evidence = config["evidence"] as? Map<*, *> ?: return config
+        val type = evidence["type"] as? String ?: return config
+
+        // Convertir el type a mayúsculas
+        val normalizedEvidence = evidence.toMutableMap().apply {
+            this["type"] = type.uppercase()
+        }
+
+        return config.toMutableMap().apply {
+            this["evidence"] = normalizedEvidence
         }
     }
 

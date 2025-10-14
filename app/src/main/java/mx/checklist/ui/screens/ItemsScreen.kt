@@ -51,6 +51,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.Alignment
@@ -58,7 +59,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.FileProvider
+import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -434,13 +437,42 @@ private fun ItemCard(
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(attachmentsForThisItem, key = { it.id }) { att ->
                                 Box(modifier = Modifier.size(100.dp)) {
-                                    val imageModel = att.localUri ?: att.url
+                                    // ✅ MEJORADO: Usar ImageRequest con crossfade y placeholder
+                                    val imageModel = remember(att.id, att.localUri, att.url) {
+                                        ImageRequest.Builder(context)
+                                            .data(att.localUri ?: att.url)
+                                            .crossfade(300) // Transición suave de 300ms
+                                            .diskCacheKey(att.url) // Cachear por URL del servidor
+                                            .memoryCacheKey(att.url) // Mantener en memoria
+                                            .build()
+                                    }
+
+                                    val painter = rememberAsyncImagePainter(imageModel)
+                                    val painterState = painter.state
+
+                                    // Mostrar la imagen
                                     Image(
-                                        painter = rememberAsyncImagePainter(imageModel),
+                                        painter = painter,
                                         contentDescription = "Foto adjunta ${att.id}",
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
                                     )
+
+                                    // ✅ NUEVO: Mostrar indicador de carga mientras se descarga del servidor
+                                    if (painterState is AsyncImagePainter.State.Loading) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Color.Black.copy(alpha = 0.3f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
                                     if (!readOnly) {
                                         IconButton(
                                             onClick = { vm.deleteAttachment(item.id, att.id) },
@@ -537,9 +569,6 @@ private fun ItemCard(
                                 )
                             )
                         }
-                    }
-                    if (!readOnly) {
-                        Text("Campo booleano - selecciona SÍ o NO arriba", style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 
