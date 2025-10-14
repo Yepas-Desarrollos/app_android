@@ -370,7 +370,7 @@ private fun ItemCard(
 
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // ✅ NUEVO: Chip de estado visual prominente
+            //  NUEVO: Chip de estado visual prominente
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
