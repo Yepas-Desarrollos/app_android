@@ -175,8 +175,15 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                 return@launch
             }
 
+            // Validación específica para BOOLEAN, pero sin mostrar error si aún no hay status
             if (item.itemTemplate?.expectedType.equals("BOOLEAN", ignoreCase = true)) {
-                if (status != "OK" && status != "FAIL") {
+                val s = status?.uppercase()?.trim()
+                if (s.isNullOrEmpty()) {
+                    // Aún no se eligió OK/FAIL: solo guarda borrador y sal sin error
+                    setDraft(itemId, status, text, number)
+                    return@launch
+                }
+                if (s != "OK" && s != "FAIL") {
                     _error.value = "Solo se permite OK o FAIL para este campo."
                     setDraft(itemId, status, text, number)
                     return@launch
@@ -275,7 +282,7 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                     // 3. Al tener éxito, refrescar la lista desde el servidor
                     val newAttachments = repo.listAttachments(itemId)
 
-                    //  MEJORADO: Preservar el localUri en el attachment más reciente para transición suave
+                    // ✅ MEJORADO: Preservar el localUri en el attachment más reciente para transición suave
                     val updatedAttachments = newAttachments.map { serverAtt ->
                         if (serverAtt == newAttachments.lastOrNull()) {
                             serverAtt.copy(localUri = localUri)
@@ -295,9 +302,12 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                     // Limpiar cualquier error previo
                     _evidenceError.value = null
 
-                    // Si existe un borrador para este item, intentar guardarlo ahora que ya hay foto(s)
+                    // Solo autoguardar si el borrador tiene status válido (OK/FAIL)
                     _drafts.value[itemId]?.let { draft ->
-                        respond(itemId, draft.status, draft.text, draft.number)
+                        val st = draft.status?.uppercase()
+                        if (st == "OK" || st == "FAIL") {
+                            respond(itemId, draft.status, draft.text, draft.number)
+                        }
                     }
 
                 } catch (e: Exception) {
