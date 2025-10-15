@@ -25,11 +25,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,6 +70,13 @@ import java.util.Locale
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+// NUEVOS imports para Snackbar/Scaffold
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 
 @Composable
 fun ItemsScreen(
@@ -105,126 +114,181 @@ fun ItemsScreen(
     val total = items.size.coerceAtLeast(1)
     val allAnswered = items.isNotEmpty() && answered == items.size
 
-    var showSubmittedDialog by remember { mutableStateOf(false) }
+    //  CORRECCIÓN: Validar también que se cumplan los requisitos de fotos
+    val allRequirementsMet = remember(items) {
+        if (items.isEmpty()) return@remember false
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Encabezado mejorado con diseño más atractivo
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = shownTemplateName ?: "Checklist",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary // Color azul como "Checklist Disponibles"
-                )
-                Text(
-                    text = "Tienda: $storeCode",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "$answered / ${items.size} items respondidos",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
+        items.all { item ->
+            // Verificar que el item esté respondido
+            if (item.responseStatus.isNullOrEmpty()) return@all false
 
-        if (isReadOnly) Text("Checklist enviado (solo lectura)", color = MaterialTheme.colorScheme.primary)
-        if (error != null) Text("Error: $error", color = MaterialTheme.colorScheme.error)
+            // Verificar requisitos de fotos
+            val tpl = item.itemTemplate
+            val cfg = tpl?.config ?: emptyMap<String, Any>()
+            val attachments = item.attachments ?: emptyList()
+            val evidenceConfig = cfg["evidence"] as? Map<String, Any?>
 
-        LinearProgressIndicator(progress = { answered / total.toFloat() }, modifier = Modifier.fillMaxWidth())
+            if (evidenceConfig != null && evidenceConfig["type"] == "PHOTO") {
+                val required = (evidenceConfig["required"] as? Boolean) ?: false
+                val minCount = (evidenceConfig["minCount"] as? Number)?.toInt() ?: 0
+                val requiredOnFail = (evidenceConfig["requiredOnFail"] as? Boolean) ?: false
 
-        if (loading && items.isEmpty()) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
-        }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // ✅ CORREGIDO: Iterar correctamente sobre todas las secciones
-            itemsBySection.forEach { (sectionName, sectionItems) ->
-                // Calcular estadísticas de la sección
-                val sectionAnswered = sectionItems.count { !it.responseStatus.isNullOrEmpty() }
-                val sectionTotal = sectionItems.size
-
-                // Encabezado de sección
-                item(key = "header_$sectionName") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = sectionName,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "$sectionAnswered de $sectionTotal completados",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+                var photosNeeded = 0
+                if (requiredOnFail && item.responseStatus.equals("FAIL", ignoreCase = true)) {
+                    photosNeeded = if (minCount > 0) minCount else 1
+                } else if (required) {
+                    photosNeeded = minCount
                 }
 
-                // Items de la sección ordenados por orderIndex
-                items(
-                    items = sectionItems.sortedBy { it.orderIndex },
-                    key = { it.id }
-                ) { item ->
-                    ItemCard(
-                        item = item,
-                        readOnly = isReadOnly,
-                        vm = vm,
-                        onSave = { currentStatus, respText, number ->
-                            vm.respond(item.id, currentStatus, respText, number)
-                        }
+                if (attachments.size < photosNeeded) return@all false
+            } else if (tpl?.expectedType.equals("PHOTO", ignoreCase = true) ||
+                       tpl?.expectedType.equals("MULTIPHOTO", ignoreCase = true)) {
+                if (attachments.isEmpty()) return@all false
+            }
+
+            true
+        }
+    }
+
+    var showSubmittedDialog by remember { mutableStateOf(false) }
+
+    // Snackbar para mensajes (incluye folio)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val screenScope = rememberCoroutineScope()
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(16.dp)
+                .padding(innerPadding),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Encabezado mejorado con diseño más atractivo
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = shownTemplateName ?: "Checklist",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary // Color azul como "Checklist Disponibles"
+                    )
+                    Text(
+                        text = "Tienda: $storeCode",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Run ID: #$runId",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "$answered / ${items.size} items respondidos",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
-        }
 
-        if (!isReadOnly) {
-            Button(
-                enabled = allAnswered && !loading,
-                onClick = {
-                    val (canSubmit, message) = vm.canSubmitAll()
-                    if (canSubmit) {
-                        vm.submit(runId) {
-                            showSubmittedDialog = true
+            if (isReadOnly) Text("Checklist enviado (solo lectura)", color = MaterialTheme.colorScheme.primary)
+            if (error != null) Text("Error: $error", color = MaterialTheme.colorScheme.error)
+
+            LinearProgressIndicator(progress = { answered / total.toFloat() }, modifier = Modifier.fillMaxWidth())
+
+            if (loading && items.isEmpty()) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                //  CORREGIDO: Iterar correctamente sobre todas las secciones
+                itemsBySection.forEach { (sectionName, sectionItems) ->
+                    // Calcular estadísticas de la sección
+                    val sectionAnswered = sectionItems.count { !it.responseStatus.isNullOrEmpty() }
+                    val sectionTotal = sectionItems.size
+
+                    // Encabezado de sección
+                    item(key = "header_$sectionName") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = sectionName,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "$sectionAnswered de $sectionTotal completados",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         }
-                    } else {
-                        vm.updateError(message ?: "Hay ítems pendientes o con errores de evidencia.")
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) { Text(if (loading) "Enviando…" else "Enviar checklist") }
+
+                    // Items de la sección ordenados por orderIndex
+                    items(
+                        items = sectionItems.sortedBy { it.orderIndex },
+                        key = { it.id }
+                    ) { item ->
+                        ItemCard(
+                            item = item,
+                            readOnly = isReadOnly,
+                            vm = vm,
+                            onSave = { currentStatus, respText, number ->
+                                vm.respond(item.id, currentStatus, respText, number)
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (!isReadOnly) {
+                Button(
+                    enabled = allAnswered && allRequirementsMet && !loading,
+                    onClick = {
+                        val (canSubmit, message) = vm.canSubmitAll()
+                        if (canSubmit) {
+                            vm.submit(runId) {
+                                showSubmittedDialog = true
+                                // Mostrar snackbar con folio
+                                screenScope.launch {
+                                    snackbarHostState.showSnackbar("Checklist enviado. Folio: #$runId")
+                                }
+                            }
+                        } else {
+                            vm.updateError(message ?: "Hay ítems pendientes o con errores de evidencia.")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) { Text(if (loading) "Enviando…" else "Enviar checklist") }
+            }
         }
     }
 
@@ -241,7 +305,9 @@ fun ItemsScreen(
                 }) { Text("OK") }
             },
             title = { Text("Checklist enviado") },
-            text = { Text("Tu checklist se envió correctamente.") }
+            text = {
+                Text("Tu checklist se envió correctamente.\n\nCon numero de Folio: #$runId")
+            }
         )
     }
 }
@@ -266,6 +332,10 @@ private fun ItemCard(
     val loading by vm.loading.collectAsStateWithLifecycle()
     val uploadingImages by vm.uploadingImages.collectAsStateWithLifecycle()
     val isUploadingThisItem = uploadingImages.contains(item.id)
+
+    // NUEVO: consumir borradores del VM
+    val drafts by vm.drafts.collectAsStateWithLifecycle()
+    val draftForItem = drafts[item.id]
 
     val context = LocalContext.current
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -302,78 +372,106 @@ private fun ItemCard(
         vm.clearEvidenceError()
     }
 
-    var status by remember(item.id) { mutableStateOf(item.responseStatus.orEmpty()) }
-    var respText by remember(item.id) { mutableStateOf(item.responseText.orEmpty()) }
-    var numberStr by remember(item.id) { mutableStateOf(item.responseNumber?.toString().orEmpty()) }
-    //  CORREGIDO: Usar responseStatus en lugar de justSaved local
-    val isAlreadySaved = !item.responseStatus.isNullOrEmpty()
+    //  BUENA PRÁCTICA: Estado local inicial desde BORRADOR (si existe) o servidor
+    val initialStatus = remember(item.id, draftForItem?.status, item.responseStatus) { draftForItem?.status ?: item.responseStatus ?: "" }
+    val initialText = remember(item.id, draftForItem?.text, item.responseText) { draftForItem?.text ?: item.responseText ?: "" }
+    val initialNumberStr = remember(item.id, draftForItem?.number, item.responseNumber) { (draftForItem?.number ?: item.responseNumber)?.toString() ?: "" }
 
-    LaunchedEffect(item.id, item.responseStatus, item.responseText, item.responseNumber) {
-        status = item.responseStatus.orEmpty()
-        respText = item.responseText.orEmpty()
-        numberStr = item.responseNumber?.toString().orEmpty()
+    var localStatus by remember(item.id) { mutableStateOf(initialStatus) }
+    var localRespText by remember(item.id) { mutableStateOf(initialText) }
+    var localNumberStr by remember(item.id) { mutableStateOf(initialNumberStr) }
+
+    //  NUEVO: guardar borrador en cada cambio local
+    LaunchedEffect(localStatus, localRespText, localNumberStr) {
+        vm.setDraft(item.id, localStatus.ifBlank { null }, localRespText.ifBlank { null }, localNumberStr.toDoubleOrNull())
     }
+
+    //  NUEVO: Job de guardado para cancelar si es necesario
+    var saveJob by remember(item.id) { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
+
+    // Estado derivado: si ya tiene respuesta del servidor
+    val isServerSaved = !item.responseStatus.isNullOrEmpty() &&
+                        item.responseStatus == localStatus
 
     val evidenceConfig = remember(item.itemTemplate?.config) {
         (item.itemTemplate?.config?.get("evidence") as? Map<*, *>)?.mapKeys { it.key.toString() }
     }
 
-    var photoEvidenceRequiredText by remember(item.id, evidenceConfig, status, attachmentsForThisItem.size) {
-        mutableStateOf<String?>(null)
+    //  BUENA PRÁCTICA: Calcular requisitos de fotos con useMemo (remember)
+    val photoRequirements = remember(item.id, evidenceConfig, localStatus, attachmentsForThisItem.size) {
+        calculatePhotoRequirements(
+            evidenceConfig = evidenceConfig,
+            expectedType = item.itemTemplate?.expectedType,
+            currentStatus = localStatus,
+            currentPhotoCount = attachmentsForThisItem.size
+        )
     }
-    var photosNeeded by remember { mutableStateOf(0) }
 
-    LaunchedEffect(item.id, evidenceConfig, status, attachmentsForThisItem.size) {
-        var required = false
-        var minCount = 0
-        var requiredOnFail = false
-        var isPhotoEvidenceSource = false
-
-        val itemExpectedType = item.itemTemplate?.expectedType?.uppercase()
-
-        if (evidenceConfig != null && evidenceConfig["type"] == "PHOTO") {
-            isPhotoEvidenceSource = true
-            required = evidenceConfig["required"] as? Boolean ?: false
-            minCount = (evidenceConfig["minCount"] as? Number)?.toInt() ?: 0
-            requiredOnFail = evidenceConfig["requiredOnFail"] as? Boolean ?: false
-        } else if (itemExpectedType == "PHOTO" || itemExpectedType == "MULTIPHOTO"){
-            isPhotoEvidenceSource = true
-            minCount = (evidenceConfig?.get("minCount") as? Number)?.toInt() ?: 1
-            required = evidenceConfig?.get("required") as? Boolean ?: (minCount > 0)
-        }
-
-        if (isPhotoEvidenceSource) {
-            var photosActuallyNeeded = 0
-            if (requiredOnFail && status.equals("FAIL", ignoreCase = true)) {
-                photosActuallyNeeded = if (minCount > 0) minCount else 1
-            } else if (required) {
-                photosActuallyNeeded = minCount
-            } else if (minCount > 0 && photosActuallyNeeded == 0) {
-                photosActuallyNeeded = minCount
-            }
-
-            photosNeeded = photosActuallyNeeded
-
-            if (photosActuallyNeeded > 0) {
-                val remaining = (photosActuallyNeeded - attachmentsForThisItem.size).coerceAtLeast(0)
-                if (remaining > 0) {
-                    photoEvidenceRequiredText = "Faltan $remaining fotos. (${attachmentsForThisItem.size} / $photosActuallyNeeded)"
-                } else {
-                    photoEvidenceRequiredText = "Fotos: ${attachmentsForThisItem.size} / $photosActuallyNeeded requeridas."
-                }
+    //  CRÍTICO: Función de guardado INMEDIATO con validación del backend
+    val saveResponse: () -> Unit = save@ {
+        if (localStatus.isNotBlank() && !loading && !isUploadingThisItem) {
+            // Evitar POST si ya coincide con servidor
+            if (isServerSaved) return@save
+            val canSaveToServer = if (photoRequirements.required > 0) {
+                attachmentsForThisItem.size >= photoRequirements.required
             } else {
-                photoEvidenceRequiredText = if (itemExpectedType == "PHOTO" || itemExpectedType == "MULTIPHOTO")
-                    "Fotos: ${attachmentsForThisItem.size} (opcional)" else null
+                true
             }
-        } else {
-            photoEvidenceRequiredText = null
-            photosNeeded = 0
+
+            if (canSaveToServer) {
+                // Cancelar guardado anterior si existe
+                saveJob?.cancel()
+
+                // Guardar inmediatamente sin delay
+                saveJob = scope.launch {
+                    val parsed = localNumberStr.toDoubleOrNull()
+                    vm.clearEvidenceError()
+                    onSave(localStatus.trim(), localRespText.trim().ifBlank { null }, parsed)
+                }
+            }
+        }
+    }
+
+    // Guardar cuando cambia el estado (con pequeño debounce)
+    LaunchedEffect(localStatus) {
+        if (localStatus.isNotBlank() && !isServerSaved) {
+            delay(100)
+            saveResponse()
+        }
+    }
+
+    // Guardar al desmontar si es posible
+    DisposableEffect(item.id) {
+        onDispose {
+            if (localStatus.isNotBlank() && !loading && !isUploadingThisItem && !isServerSaved) {
+                val canSave = if (photoRequirements.required > 0) {
+                    attachmentsForThisItem.size >= photoRequirements.required
+                } else {
+                    true
+                }
+                if (canSave) {
+                    val parsed = localNumberStr.toDoubleOrNull()
+                    scope.launch {
+                        vm.clearEvidenceError()
+                        onSave(localStatus.trim(), localRespText.trim().ifBlank { null }, parsed)
+                    }
+                }
+            }
+        }
+    }
+
+    // Guardar automáticamente cuando se sube una foto
+    LaunchedEffect(attachmentsForThisItem.size) {
+        if (localStatus.isNotBlank() && !isServerSaved && attachmentsForThisItem.size >= photoRequirements.required) {
+            delay(200)
+            saveResponse()
         }
     }
 
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            //  NUEVO: Chip de estado visual prominente
+            // Encabezado con título y estado
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -381,14 +479,23 @@ private fun ItemCard(
             ) {
                 Text(initialTitle, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
 
-                // Chip de estado
+                // Chip de estado mejorado
+                val needsPhotoToSave = localStatus.isNotBlank() &&
+                                      photoRequirements.required > 0 &&
+                                      attachmentsForThisItem.size < photoRequirements.required
+
                 FilterChip(
-                    selected = isAlreadySaved,
-                    onClick = { /* No hace nada, solo visual */ },
+                    selected = isServerSaved,
+                    onClick = { /* Solo visual */ },
                     enabled = false,
                     label = { 
                         Text(
-                            if (isAlreadySaved) "✓ Guardado" else "⚪ Pendiente",
+                            when {
+                                needsPhotoToSave -> "📷 Falta foto"
+                                isServerSaved -> "✓ Guardado"
+                                localStatus.isNotBlank() && !isServerSaved -> "⏳ Guardando..."
+                                else -> "⚪ Pendiente"
+                            },
                             style = MaterialTheme.typography.labelMedium
                         )
                     },
@@ -396,8 +503,12 @@ private fun ItemCard(
                         selectedContainerColor = Color(0xFF4CAF50),
                         selectedLabelColor = Color.White,
                         disabledSelectedContainerColor = Color(0xFF4CAF50),
-                        disabledContainerColor = Color.Gray.copy(alpha = 0.3f),
-                        disabledLabelColor = Color.Gray
+                        disabledContainerColor = when {
+                            needsPhotoToSave -> Color(0xFFFF9800) // Naranja para "falta foto"
+                            localStatus.isNotBlank() && !isServerSaved -> Color(0xFFFFA726) // Naranja claro para "guardando"
+                            else -> Color.Gray.copy(alpha = 0.3f)
+                        },
+                        disabledLabelColor = if (localStatus.isNotBlank() || needsPhotoToSave) Color.White else Color.Gray
                     )
                 )
             }
@@ -410,23 +521,26 @@ private fun ItemCard(
                 Text(meta, style = MaterialTheme.typography.bodySmall)
             }
 
-            photoEvidenceRequiredText?.let {
-                val currentMinCount = extractMinCount(evidenceConfig, status, item.itemTemplate?.expectedType)
-                val photosAreMissing = currentMinCount > attachmentsForThisItem.size
-                val isError = evidenceError != null || (photosAreMissing && currentMinCount > 0)
+            // Mostrar info de fotos
+            if (photoRequirements.message != null) {
+                val photosAreMissing = photoRequirements.required > attachmentsForThisItem.size
                 Text(
-                    it,
+                    photoRequirements.message,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (photosAreMissing && photoRequirements.required > 0)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             evidenceError?.let {
-                Text("$it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
 
             val shouldShowEvidenceSection = evidenceConfig != null ||
                 item.itemTemplate?.expectedType.equals("PHOTO", true) ||
                 item.itemTemplate?.expectedType.equals("MULTIPHOTO", true)
+
             if (shouldShowEvidenceSection) {
                 Column(modifier = Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Evidencia Fotográfica", style = MaterialTheme.typography.titleSmall)
@@ -437,20 +551,18 @@ private fun ItemCard(
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(attachmentsForThisItem, key = { it.id }) { att ->
                                 Box(modifier = Modifier.size(100.dp)) {
-                                    // ✅ MEJORADO: Usar ImageRequest con crossfade y placeholder
                                     val imageModel = remember(att.id, att.localUri, att.url) {
                                         ImageRequest.Builder(context)
                                             .data(att.localUri ?: att.url)
-                                            .crossfade(300) // Transición suave de 300ms
-                                            .diskCacheKey(att.url) // Cachear por URL del servidor
-                                            .memoryCacheKey(att.url) // Mantener en memoria
+                                            .crossfade(300)
+                                            .diskCacheKey(att.url)
+                                            .memoryCacheKey(att.url)
                                             .build()
                                     }
 
                                     val painter = rememberAsyncImagePainter(imageModel)
                                     val painterState = painter.state
 
-                                    // Mostrar la imagen
                                     Image(
                                         painter = painter,
                                         contentDescription = "Foto adjunta ${att.id}",
@@ -458,7 +570,6 @@ private fun ItemCard(
                                         contentScale = ContentScale.Crop
                                     )
 
-                                    // ✅ NUEVO: Mostrar indicador de carga mientras se descarga del servidor
                                     if (painterState is AsyncImagePainter.State.Loading) {
                                         Box(
                                             modifier = Modifier
@@ -475,7 +586,10 @@ private fun ItemCard(
 
                                     if (!readOnly) {
                                         IconButton(
-                                            onClick = { vm.deleteAttachment(item.id, att.id) },
+                                            onClick = {
+                                                vm.deleteAttachment(item.id, att.id)
+                                                // NO marcar como dirty al eliminar foto
+                                            },
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
                                                 .background(Color.Black.copy(alpha = 0.5f))
@@ -490,13 +604,12 @@ private fun ItemCard(
                     }
 
                     if (!readOnly) {
+                        val canTakeMorePhotos = attachmentsForThisItem.size < photoRequirements.max
+
                         Button(
                             onClick = {
                                 when (PackageManager.PERMISSION_GRANTED) {
-                                    ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.CAMERA
-                                    ) -> {
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
                                         val newImageFile = createImageFile(context)
                                         val newImageUri = FileProvider.getUriForFile(
                                             context,
@@ -511,20 +624,18 @@ private fun ItemCard(
                                     }
                                 }
                             },
-                            enabled = !isUploadingThisItem,
+                            enabled = !isUploadingThisItem && canTakeMorePhotos,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (isUploadingThisItem) {
-                                Text("Subiendo imagen...")
-                            } else {
-                                Text("Tomar Foto")
+                            when {
+                                isUploadingThisItem -> Text("Subiendo imagen...")
+                                !canTakeMorePhotos -> Text("Máximo de fotos alcanzado (${photoRequirements.max})")
+                                else -> Text("Tomar Foto")
                             }
                         }
 
                         if (isUploadingThisItem) {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }
@@ -536,29 +647,24 @@ private fun ItemCard(
 
             when (expectedType) {
                 "BOOLEAN" -> {
-                    // Solo para campos BOOLEAN mostramos los chips SÍ/NO
-                    Text("Estatus (requerido)")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val statusOptions = mapOf(
-                            "OK" to "SÍ",
-                            "FAIL" to "NO"
-                        )
-                        val statusColors = mapOf(
-                            "OK" to Color(0xFF4CAF50),
-                            "FAIL" to Color(0xFFF44336)
-                        )
+                        val statusOptions = mapOf("OK" to "SÍ", "FAIL" to "NO")
+                        val statusColors = mapOf("OK" to Color(0xFF4CAF50), "FAIL" to Color(0xFFF44336))
 
                         statusOptions.forEach { (value, label) ->
-                            val isSelected = status.equals(value, ignoreCase = true)
+                            val isSelected = localStatus.equals(value, ignoreCase = true)
                             FilterChip(
                                 selected = isSelected,
                                 onClick = {
                                     if (!readOnly) {
-                                        status = value
+                                        localStatus = value
                                         vm.clearEvidenceError()
+                                        // Guardar borrador inmediatamente
+                                        vm.setDraft(item.id, localStatus, localRespText.ifBlank { null }, localNumberStr.toDoubleOrNull())
+                                        // El guardado al servidor se dispara por LaunchedEffect/localStatus
                                     }
                                 },
                                 enabled = !readOnly,
@@ -578,19 +684,19 @@ private fun ItemCard(
                         Text("Selecciona una opción:")
                         SingleChoiceField(
                             options = options,
-                            selected = respText.takeIf { it.isNotBlank() },
+                            selected = localRespText.takeIf { it.isNotBlank() },
                             onSelect = { selectedOption ->
-                                respText = selectedOption
-                                // Auto-establecer estado a OK cuando se selecciona una opción
-                                status = "OK"
+                                localRespText = selectedOption
+                                localStatus = "OK"
+                                vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                                // El guardado se dispara automáticamente
                             }
                         )
                     } else if (options.isNotEmpty() && readOnly) {
-                        Text("Opción seleccionada: ${respText.ifBlank { "Ninguna" }}")
+                        Text("Opción seleccionada: ${localRespText.ifBlank { "Ninguna" }}")
                     }
-                    // Mostrar estado automático para no-BOOLEAN
                     if (!readOnly) {
-                        val hasResponse = respText.isNotBlank()
+                        val hasResponse = localRespText.isNotBlank()
                         Text(
                             text = if (hasResponse) "✓ Respondido" else "⚪ Pendiente",
                             style = MaterialTheme.typography.bodySmall,
@@ -603,22 +709,22 @@ private fun ItemCard(
                     val options = (config["options"] as? List<*>)?.map { it.toString() } ?: emptyList()
                     if (options.isNotEmpty() && !readOnly) {
                         Text("Selecciona múltiples opciones:")
-                        val selectedOptions = respText.split(",").filter { it.isNotBlank() }
+                        val selectedOptions = localRespText.split(",").filter { it.isNotBlank() }
                         MultiSelectField(
                             options = options,
                             selected = selectedOptions,
                             onSelectionChange = { newSelection ->
-                                respText = newSelection.joinToString(",")
-                                // Auto-establecer estado a OK cuando se seleccionan opciones
-                                status = "OK"
+                                localRespText = newSelection.joinToString(",")
+                                localStatus = "OK"
+                                vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                                // El guardado se dispara automáticamente
                             }
                         )
                     } else if (options.isNotEmpty() && readOnly) {
-                        Text("Opciones seleccionadas: ${respText.ifBlank { "Ninguna" }}")
+                        Text("Opciones seleccionadas: ${localRespText.ifBlank { "Ninguna" }}")
                     }
-                    // Mostrar estado automático para no-BOOLEAN
                     if (!readOnly) {
-                        val hasResponse = respText.isNotBlank()
+                        val hasResponse = localRespText.isNotBlank()
                         Text(
                             text = if (hasResponse) "✓ Respondido" else "⚪ Pendiente",
                             style = MaterialTheme.typography.bodySmall,
@@ -637,49 +743,49 @@ private fun ItemCard(
                             min = min,
                             max = max,
                             step = step,
-                            value = numberStr.toIntOrNull(),
+                            value = localNumberStr.toIntOrNull(),
                             onValueChange = { value ->
-                                numberStr = value.toString()
-                                // Auto-establecer estado a OK cuando se califica
-                                status = "OK"
+                                localNumberStr = value.toString()
+                                localStatus = "OK"
+                                vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                                // El guardado se dispara automáticamente
                             }
                         )
-                        // Mostrar estado automático
-                        val hasResponse = numberStr.isNotBlank() && numberStr.toIntOrNull() != null
+                        val hasResponse = localNumberStr.isNotBlank() && localNumberStr.toIntOrNull() != null
                         Text(
                             text = if (hasResponse) "✓ Calificado" else "⚪ Pendiente",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
-                        Text("Calificación: ${numberStr.ifBlank { "No calificado" }}")
+                        Text("Calificación: ${localNumberStr.ifBlank { "No calificado" }}")
                     }
                 }
                 
                 "NUMBER" -> {
                     if (!readOnly) {
                         OutlinedTextField(
-                            value = numberStr,
+                            value = localNumberStr,
                             onValueChange = { input ->
-                                numberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
-                                // Auto-establecer estado a OK cuando se ingresa número válido
+                                localNumberStr = input.filter { ch: Char -> ch.isDigit() || ch == '.' }
                                 if (input.isNotBlank() && input.toDoubleOrNull() != null) {
-                                    status = "OK"
+                                    localStatus = "OK"
+                                    vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                                    // El guardado se dispara automáticamente
                                 }
                             },
                             label = { Text("Valor numérico") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        // Mostrar estado automático
-                        val hasResponse = numberStr.isNotBlank() && numberStr.toDoubleOrNull() != null
+                        val hasResponse = localNumberStr.isNotBlank() && localNumberStr.toDoubleOrNull() != null
                         Text(
                             text = if (hasResponse) "✓ Valor ingresado" else "⚪ Pendiente",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
-                        Text("Valor: ${numberStr.ifBlank { "No especificado" }}")
+                        Text("Valor: ${localNumberStr.ifBlank { "No especificado" }}")
                     }
                 }
                 
@@ -687,25 +793,25 @@ private fun ItemCard(
                     val maxLength = (config["maxLength"] as? Number)?.toInt() ?: 500
                     if (!readOnly) {
                         TextFieldLong(
-                            value = respText,
+                            value = localRespText,
                             maxLength = maxLength,
                             onValueChange = { newText ->
-                                respText = newText
-                                // Auto-establecer estado a OK cuando hay texto
+                                localRespText = newText
                                 if (newText.isNotBlank()) {
-                                    status = "OK"
+                                    localStatus = "OK"
+                                    vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                                    // El guardado se dispara automáticamente
                                 }
                             }
                         )
-                        // Mostrar estado automático
-                        val hasResponse = respText.isNotBlank()
+                        val hasResponse = localRespText.isNotBlank()
                         Text(
                             text = if (hasResponse) "✓ Texto ingresado" else "⚪ Pendiente",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
                     } else {
-                        Text("Texto: ${respText.ifBlank { "No especificado" }}")
+                        Text("Texto: ${localRespText.ifBlank { "No especificado" }}")
                     }
                 }
                 
@@ -714,10 +820,9 @@ private fun ItemCard(
                         BarcodeField(
                             value = item.scannedBarcode,
                             onScan = { scannedCode ->
-                                // Actualizar el código escaneado
+                                // El guardado se dispara automáticamente
                             }
                         )
-                        // Mostrar estado automático
                         val hasResponse = !item.scannedBarcode.isNullOrBlank()
                         Text(
                             text = if (hasResponse) "✓ Código escaneado" else "⚪ Pendiente",
@@ -730,71 +835,44 @@ private fun ItemCard(
                 }
                 
                 "PHOTO", "MULTIPHOTO" -> {
-                    // Las fotos ya se manejan en la sección de evidencia arriba
                     if (!readOnly) {
-                        // Mostrar estado automático basado en evidencia
                         val hasPhotos = item.attachments?.isNotEmpty() == true
                         Text(
                             text = if (hasPhotos) "✓ Foto(s) tomada(s)" else "⚪ Sin fotos",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (hasPhotos) Color(0xFF4CAF50) else Color.Gray
                         )
-                        if (hasPhotos) {
-                            status = "OK" // Auto-establecer cuando hay fotos
+                        if (hasPhotos && localStatus.isBlank()) {
+                            localStatus = "OK"
+                            vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                            // El guardado se dispara automáticamente
                         }
                     }
                 }
                 
                 else -> {
-                    // Campos genéricos para tipos no reconocidos - auto-estado basado en respuesta
                     if (!readOnly) {
                         OutlinedTextField(
-                            value = respText,
-                            onValueChange = { 
-                                respText = it
-                                // Auto-establecer estado a OK cuando hay contenido
+                            value = localRespText,
+                            onValueChange = {
+                                localRespText = it
                                 if (it.isNotBlank()) {
-                                    status = "OK"
+                                    localStatus = "OK"
+                                    vm.setDraft(item.id, localStatus, localRespText, localNumberStr.toDoubleOrNull())
+                                    // El guardado se dispara automáticamente
                                 }
                             },
                             label = { Text("Comentarios adicionales (opcional)") },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        // Mostrar estado automático
-                        val hasResponse = respText.isNotBlank()
+                        val hasResponse = localRespText.isNotBlank()
                         Text(
                             text = if (hasResponse) "✓ Completado" else "⚪ Pendiente",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (hasResponse) Color(0xFF4CAF50) else Color.Gray
                         )
-                    } else if (respText.isNotBlank()) {
-                        Text("Comentarios: $respText")
-                    }
-                }
-            }
-
-            if (!readOnly) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val parsed = numberStr.toDoubleOrNull()
-                    val isSaveEnabled = status.isNotBlank() && !loading && !isUploadingThisItem &&
-                        (attachmentsForThisItem.size >= photosNeeded)
-                    val isSaved = isAlreadySaved && evidenceError == null && !loading && !isUploadingThisItem
-
-                    Button(
-                        enabled = isSaveEnabled && !isSaved,
-                        onClick = {
-                            vm.clearEvidenceError()
-                            onSave(status.trim(), respText.trim().ifBlank { null }, parsed)
-                        },
-                        colors = if (isSaved) ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        ) else ButtonDefaults.buttonColors()
-                    ) {
-                        when {
-                            isUploadingThisItem -> Text("Subiendo imagen...")
-                            isSaved -> Text("Guardado ✓")
-                            else -> Text("Guardar respuesta")
-                        }
+                    } else if (localRespText.isNotBlank()) {
+                        Text("Comentarios: $localRespText")
                     }
                 }
             }
@@ -802,35 +880,68 @@ private fun ItemCard(
     }
 }
 
-private fun extractMinCount(evidenceConfig: Map<String, Any?>?, currentStatus: String, itemExpectedType: String?): Int {
-    var photosNeeded = 0
+// ✅ BUENA PRÁCTICA: Data class para requisitos de fotos (inmutable y claro)
+private data class PhotoRequirements(
+    val required: Int,
+    val max: Int,
+    val message: String?
+)
+
+// ✅ BUENA PRÁCTICA: Función pura para calcular requisitos (sin efectos secundarios)
+private fun calculatePhotoRequirements(
+    evidenceConfig: Map<String, Any?>?,
+    expectedType: String?,
+    currentStatus: String,
+    currentPhotoCount: Int
+): PhotoRequirements {
+    var required = 0
     var minCount = 0
-    var required = false
+    var maxCount = Int.MAX_VALUE
     var requiredOnFail = false
     var isPhotoEvidenceSource = false
 
+    val itemExpectedType = expectedType?.uppercase()
+
     if (evidenceConfig != null && evidenceConfig["type"] == "PHOTO") {
         isPhotoEvidenceSource = true
-        required = evidenceConfig["required"] as? Boolean ?: false
+        val isRequired = evidenceConfig["required"] as? Boolean ?: false
         minCount = (evidenceConfig["minCount"] as? Number)?.toInt() ?: 0
+        maxCount = (evidenceConfig["maxCount"] as? Number)?.toInt() ?: Int.MAX_VALUE
         requiredOnFail = evidenceConfig["requiredOnFail"] as? Boolean ?: false
-    } else if (itemExpectedType.equals("PHOTO", true) || itemExpectedType.equals("MULTIPHOTO", true)) {
+
+        if (requiredOnFail && currentStatus.equals("FAIL", ignoreCase = true)) {
+            required = if (minCount > 0) minCount else 1
+        } else if (isRequired) {
+            required = minCount
+        }
+    } else if (itemExpectedType == "PHOTO" || itemExpectedType == "MULTIPHOTO") {
         isPhotoEvidenceSource = true
         minCount = (evidenceConfig?.get("minCount") as? Number)?.toInt() ?: 1
-        required = evidenceConfig?.get("required") as? Boolean ?: (minCount > 0)
+        maxCount = (evidenceConfig?.get("maxCount") as? Number)?.toInt() ?:
+                   if (itemExpectedType == "PHOTO") 1 else Int.MAX_VALUE
+        required = minCount
     }
 
-    if (isPhotoEvidenceSource) {
-        if (requiredOnFail && currentStatus.equals("FAIL", ignoreCase = true)) {
-            photosNeeded = if (minCount > 0) minCount else 1
-        } else if (required) {
-            photosNeeded = minCount
-        } else if (minCount > 0 && photosNeeded == 0) {
-            photosNeeded = minCount
+    val message = if (isPhotoEvidenceSource && required > 0) {
+        val remaining = (required - currentPhotoCount).coerceAtLeast(0)
+        if (remaining > 0) {
+            "Faltan $remaining fotos. ($currentPhotoCount / $required)"
+        } else {
+            "Fotos: $currentPhotoCount / $required ✓"
         }
+    } else if (isPhotoEvidenceSource) {
+        "Fotos: $currentPhotoCount (opcional)"
+    } else {
+        null
     }
-    return photosNeeded
+
+    return PhotoRequirements(
+        required = required,
+        max = maxCount,
+        message = message
+    )
 }
+
 
 private fun uriToFile(context: Context, uri: Uri): File? {
     return try {

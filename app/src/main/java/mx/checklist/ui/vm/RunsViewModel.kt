@@ -40,6 +40,26 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     private val _uploadingImages = MutableStateFlow<Set<Long>>(emptySet())
     val uploadingImages: StateFlow<Set<Long>> = _uploadingImages
 
+    // NUEVO: borradores por itemId para no perder respuestas locales cuando falta evidencia
+    data class DraftResponse(
+        val status: String? = null,
+        val text: String? = null,
+        val number: Double? = null
+    )
+    private val _drafts = MutableStateFlow<Map<Long, DraftResponse>>(emptyMap())
+    val drafts: StateFlow<Map<Long, DraftResponse>> = _drafts
+
+    fun setDraft(itemId: Long, status: String?, text: String?, number: Double?) {
+        _drafts.value = _drafts.value.toMutableMap().apply {
+            this[itemId] = DraftResponse(status, text, number)
+        }
+    }
+    fun clearDraft(itemId: Long) {
+        if (_drafts.value.containsKey(itemId)) {
+            _drafts.value = _drafts.value.toMutableMap().apply { remove(itemId) }
+        }
+    }
+
     fun clearError() { _error.value = null }
     fun clearEvidenceError() { _evidenceError.value = null }
 
@@ -55,6 +75,8 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         _error.value = null
         _evidenceError.value = null
         _uploadingImages.value = emptySet()
+        // Limpiar borradores
+        _drafts.value = emptyMap()
     }
 
     fun getStores(): StateFlow<List<StoreDto>> {
@@ -81,6 +103,9 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             safe {
                 _runItems.value = repo.runItems(runId)
                 _runItemsLoadedFor.value = runId
+                // Opcional: limpiar borradores de items que ya no existen en este run
+                val currentIds = _runItems.value.map { it.id }.toSet()
+                _drafts.value = _drafts.value.filterKeys { it in currentIds }
             }
         }
     }
@@ -99,11 +124,21 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         }
     }
 
+    // Control de requests en vuelo para evitar duplicados
+    private val _respondingItems = MutableStateFlow<Set<Long>>(emptySet())
+    val respondingItems: StateFlow<Set<Long>> = _respondingItems
+
     fun respond(itemId: Long, status: String?, text: String?, number: Double?, barcode: String? = null, onUpdated: (RunItemDto) -> Unit = {}) {
         viewModelScope.launch {
             val item = _runItems.value.find { it.id == itemId }
             if (item == null) {
                 _error.value = "Item no encontrado"
+                return@launch
+            }
+
+            // Si ya hay un request en vuelo para este item, guardar borrador y salir (se reintenta al terminar)
+            if (_respondingItems.value.contains(itemId)) {
+                setDraft(itemId, status, text, number)
                 return@launch
             }
 
@@ -130,29 +165,30 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             if (item.itemTemplate?.expectedType.equals("PHOTO", ignoreCase = true) ||
                 item.itemTemplate?.expectedType.equals("MULTIPHOTO", ignoreCase = true)) {
                 if (evidenceConfig == null && photosNeeded == 0) {
-                     photosNeeded = 1
+                    photosNeeded = 1
                 }
             }
 
             if (photosNeeded > 0 && currentPhotoCount < photosNeeded) {
                 _evidenceError.value = "Se requieren $photosNeeded foto(s) para este ítem (actualmente $currentPhotoCount)."
+                setDraft(itemId, status, text, number)
                 return@launch
             }
 
-            // Validación de status solo OK/FAIL para BOOLEAN
             if (item.itemTemplate?.expectedType.equals("BOOLEAN", ignoreCase = true)) {
                 if (status != "OK" && status != "FAIL") {
                     _error.value = "Solo se permite OK o FAIL para este campo."
+                    setDraft(itemId, status, text, number)
                     return@launch
                 }
             }
 
-            // Validación por tipo
-            // (puedes agregar más validaciones según expectedType y config)
+            // Marcar en vuelo
+            _respondingItems.value = _respondingItems.value + itemId
 
-            //  CORREGIDO: Ahora se pasa el parámetro barcode correctamente al repositorio
-            safe {
+            try {
                 val updatedItemDto = repo.respond(itemId, status, text, number, barcode)
+
                 _runItems.value = _runItems.value.map { currentItemInList ->
                     if (currentItemInList.id == updatedItemDto.id) {
                         currentItemInList.copy(
@@ -160,14 +196,45 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                             responseText = updatedItemDto.responseText,
                             responseNumber = updatedItemDto.responseNumber,
                             scannedBarcode = updatedItemDto.scannedBarcode,
-                            respondedAt = updatedItemDto.respondedAt
+                            respondedAt = updatedItemDto.respondedAt,
+                            attachments = updatedItemDto.attachments?.takeIf { it.isNotEmpty() }
+                                ?: currentItemInList.attachments
                         )
                     } else {
                         currentItemInList
                     }
                 }
-                val finalItemToShow = _runItems.value.find { it.id == updatedItemDto.id } ?: updatedItemDto
+
+                // Al terminar, revisar si hay un borrador pendiente que difiera del estado del servidor
+                val latest = _runItems.value.find { it.id == itemId }
+                val pendingDraft = _drafts.value[itemId]
+                val attachmentsCount = latest?.attachments?.size ?: 0
+                val needsPhotos = photosNeeded > 0
+
+                if (pendingDraft != null) {
+                    val draftStatus = pendingDraft.status
+                    val serverStatus = latest?.responseStatus
+                    val canSendDraftNow = !needsPhotos || (needsPhotos && attachmentsCount >= photosNeeded)
+                    if (canSendDraftNow && draftStatus != null && draftStatus != serverStatus) {
+                        // Consumir el draft reintentando guardado
+                        clearDraft(itemId)
+                        respond(itemId, pendingDraft.status, pendingDraft.text, pendingDraft.number, barcode, onUpdated)
+                    } else if (draftStatus == serverStatus) {
+                        clearDraft(itemId)
+                    }
+                } else {
+                    // Sin borrador, limpiar cualquier residuo
+                    clearDraft(itemId)
+                }
+
+                val finalItemToShow = latest ?: updatedItemDto
                 onUpdated(finalItemToShow)
+            } catch (t: Throwable) {
+                _error.value = t.message ?: "Error al guardar la respuesta"
+                t.printStackTrace()
+            } finally {
+                // Desmarcar en vuelo
+                _respondingItems.value = _respondingItems.value - itemId
             }
         }
     }
@@ -208,9 +275,8 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                     // 3. Al tener éxito, refrescar la lista desde el servidor
                     val newAttachments = repo.listAttachments(itemId)
 
-                    // ✅ MEJORADO: Preservar el localUri en el attachment más reciente para transición suave
+                    //  MEJORADO: Preservar el localUri en el attachment más reciente para transición suave
                     val updatedAttachments = newAttachments.map { serverAtt ->
-                        // Si este es el attachment más reciente (último en la lista), preservar el localUri
                         if (serverAtt == newAttachments.lastOrNull()) {
                             serverAtt.copy(localUri = localUri)
                         } else {
@@ -229,6 +295,11 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                     // Limpiar cualquier error previo
                     _evidenceError.value = null
 
+                    // Si existe un borrador para este item, intentar guardarlo ahora que ya hay foto(s)
+                    _drafts.value[itemId]?.let { draft ->
+                        respond(itemId, draft.status, draft.text, draft.number)
+                    }
+
                 } catch (e: Exception) {
                     retryCount++
                     if (retryCount < maxRetries) {
@@ -244,7 +315,6 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                             }
                         }
 
-                        // Determinar el tipo de error y mostrar mensaje específico
                         val errorMessage = when {
                             e.message?.contains("timeout", ignoreCase = true) == true ->
                                 "Error de conexión: La subida tomó demasiado tiempo. Verifica tu conexión e intenta de nuevo."
