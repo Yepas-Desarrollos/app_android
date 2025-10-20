@@ -381,6 +381,16 @@ private fun ItemCard(
     var localRespText by remember(item.id) { mutableStateOf(initialText) }
     var localNumberStr by remember(item.id) { mutableStateOf(initialNumberStr) }
 
+    // NUEVO: sincronizar local <- (draft o servidor) para evitar perder el valor al volver
+    LaunchedEffect(draftForItem?.status, draftForItem?.text, draftForItem?.number, item.responseStatus, item.responseText, item.responseNumber) {
+        val desiredStatus = draftForItem?.status ?: item.responseStatus ?: ""
+        val desiredText = draftForItem?.text ?: item.responseText ?: ""
+        val desiredNumberStr = (draftForItem?.number ?: item.responseNumber)?.toString() ?: ""
+        if (desiredStatus != localStatus) localStatus = desiredStatus
+        if (desiredText != localRespText) localRespText = desiredText
+        if (desiredNumberStr != localNumberStr) localNumberStr = desiredNumberStr
+    }
+
     //  NUEVO: guardar borrador en cada cambio local
     LaunchedEffect(localStatus, localRespText, localNumberStr) {
         vm.setDraft(item.id, localStatus.ifBlank { null }, localRespText.ifBlank { null }, localNumberStr.toDoubleOrNull())

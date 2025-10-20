@@ -129,7 +129,8 @@ fun PhotoField(
 private fun createTempImageUri(ctx: Context): Pair<Uri, File> {
     val time = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
     val file = File(ctx.cacheDir, "evidence_$time.jpg")
-    val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
+    // Alinear authority con AndroidManifest: ${applicationId}.provider
+    val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
     return uri to file
 }
 
