@@ -46,7 +46,7 @@ fun HistoryScreen(
 
     LaunchedEffect(Unit) {
         vm.loadPendingRuns(all = true) // todos los borradores
-        vm.loadHistoryRuns()           // enviadas recientes
+        vm.loadHistoryRuns(limit = 1000)           // todos los enviados (hasta 1000)
     }
 
     val loading by vm.loading.collectAsStateWithLifecycle()
@@ -156,8 +156,8 @@ fun HistoryScreen(
                 Button(
                     onClick = {
                         adminVM?.forceDeleteRun(run.id) {
-                            // Recargar historial después de eliminar
-                            vm.loadHistoryRuns()
+                            // Recargar historial después de eliminar (con límite 1000)
+                            vm.loadHistoryRuns(limit = 1000)
                             // Limpiar mensajes anteriores
                             adminVM.clearError()
                             adminVM.clearSuccess()

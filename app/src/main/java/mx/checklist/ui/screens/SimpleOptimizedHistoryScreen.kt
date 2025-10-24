@@ -49,7 +49,8 @@ fun SimpleOptimizedHistoryScreen(
     
     LaunchedEffect(Unit) {
         runsVM.loadPendingRuns(all = true)
-        runsVM.loadHistoryRuns()
+        // Cargar TODOS los checklists enviados (hasta 1000)
+        runsVM.loadHistoryRuns(limit = 1000)
     }
     
     LaunchedEffect(error) {

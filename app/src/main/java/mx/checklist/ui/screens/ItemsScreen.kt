@@ -686,6 +686,21 @@ private fun ItemCard(
                             )
                         }
                     }
+                    // Campo de texto opcional para comentarios
+                    if (!readOnly) {
+                        OutlinedTextField(
+                            value = localRespText,
+                            onValueChange = {
+                                localRespText = it
+                                // Guardar borrador inmediatamente
+                                vm.setDraft(item.id, localStatus, localRespText.ifBlank { null }, localNumberStr.toDoubleOrNull())
+                            },
+                            label = { Text("Comentario (opcional)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else if (localRespText.isNotBlank()) {
+                        Text("Comentario: $localRespText")
+                    }
                 }
                 
                 "SINGLE_CHOICE" -> {
