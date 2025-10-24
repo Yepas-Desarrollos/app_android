@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import mx.checklist.BuildConfig
 import mx.checklist.ui.vm.AuthViewModel
 
 @Composable
@@ -182,7 +183,7 @@ fun LoginScreen(
                 contentAlignment = Alignment.BottomCenter
             ) {
                 Text(
-                    text = "Versión 1.0.0", // Si tienes una variable de versión, reemplaza aquí
+                    text = "Versión ${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
