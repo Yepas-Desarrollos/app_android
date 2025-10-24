@@ -45,25 +45,14 @@ import mx.checklist.ui.fields.ScaleField
 import mx.checklist.ui.fields.SingleChoiceField
 import mx.checklist.ui.fields.TextFieldLong
 import java.io.File
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.FileProvider
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,6 +66,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+// Imports para visor de imágenes fullscreen
+import mx.checklist.ui.components.ClickableImageThumbnail
+import mx.checklist.ui.components.FullscreenImageViewer
 
 @Composable
 fun ItemsScreen(
@@ -151,6 +143,11 @@ fun ItemsScreen(
     }
 
     var showSubmittedDialog by remember { mutableStateOf(false) }
+
+    // Estados para el visor de imágenes fullscreen
+    var showFullscreenImage by remember { mutableStateOf(false) }
+    var selectedImageUrl by remember { mutableStateOf<String?>(null) }
+    var selectedImageLocalUri by remember { mutableStateOf<String?>(null) }
 
     // Snackbar para mensajes (incluye folio)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -257,6 +254,11 @@ fun ItemsScreen(
                             vm = vm,
                             onSave = { currentStatus, respText, number ->
                                 vm.respond(item.id, currentStatus, respText, number)
+                            },
+                            onImageClick = { url, localUri ->
+                                selectedImageUrl = url
+                                selectedImageLocalUri = localUri
+                                showFullscreenImage = true
                             }
                         )
                     }
@@ -310,6 +312,19 @@ fun ItemsScreen(
             }
         )
     }
+
+    // Visor de imágenes en pantalla completa
+    if (showFullscreenImage) {
+        FullscreenImageViewer(
+            url = selectedImageUrl,
+            localUri = selectedImageLocalUri,
+            onDismiss = {
+                showFullscreenImage = false
+                selectedImageUrl = null
+                selectedImageLocalUri = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -317,7 +332,8 @@ private fun ItemCard(
     item: RunItemDto,
     readOnly: Boolean,
     vm: RunsViewModel,
-    onSave: (status: String?, text: String?, number: Double?) -> Unit
+    onSave: (status: String?, text: String?, number: Double?) -> Unit,
+    onImageClick: (url: String?, localUri: String?) -> Unit = { _, _ -> }
 ) {
     val initialTitle = remember(item.id) {
         item.itemTemplate?.title?.takeIf { it.isNotBlank() }
@@ -560,55 +576,23 @@ private fun ItemCard(
                     } else {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(attachmentsForThisItem, key = { it.id }) { att ->
-                                Box(modifier = Modifier.size(100.dp)) {
-                                    val imageModel = remember(att.id, att.localUri, att.url) {
-                                        ImageRequest.Builder(context)
-                                            .data(att.localUri ?: att.url)
-                                            .crossfade(300)
-                                            .diskCacheKey(att.url)
-                                            .memoryCacheKey(att.url)
-                                            .build()
-                                    }
-
-                                    val painter = rememberAsyncImagePainter(imageModel)
-                                    val painterState = painter.state
-
-                                    Image(
-                                        painter = painter,
-                                        contentDescription = "Foto adjunta ${att.id}",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-
-                                    if (painterState is AsyncImagePainter.State.Loading) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(Color.Black.copy(alpha = 0.3f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = Color.White
-                                            )
+                                ClickableImageThumbnail(
+                                    url = att.url,
+                                    localUri = att.localUri,
+                                    contentDescription = "Foto adjunta ${att.id}",
+                                    modifier = Modifier.size(100.dp),
+                                    onDelete = if (!readOnly) {
+                                        {
+                                            vm.deleteAttachment(item.id, att.id)
+                                            // NO marcar como dirty al eliminar foto
                                         }
+                                    } else null,
+                                    readOnly = readOnly,
+                                    onImageClick = {
+                                        // Abrir imagen en pantalla completa
+                                        onImageClick(att.url, att.localUri)
                                     }
-
-                                    if (!readOnly) {
-                                        IconButton(
-                                            onClick = {
-                                                vm.deleteAttachment(item.id, att.id)
-                                                // NO marcar como dirty al eliminar foto
-                                            },
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .background(Color.Black.copy(alpha = 0.5f))
-                                                .size(24.dp)
-                                        ) {
-                                            Icon(Icons.Default.Delete, contentDescription = "Eliminar foto", tint = Color.White)
-                                        }
-                                    }
-                                }
+                                )
                             }
                         }
                     }
