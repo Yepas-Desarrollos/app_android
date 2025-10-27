@@ -11,33 +11,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.ui.vm.AuthViewModel
 import mx.checklist.ui.vm.RunsViewModel
-import mx.checklist.data.auth.AuthState
 
 @Composable
 fun HomeScreen(
@@ -61,153 +60,140 @@ fun HomeScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = Color.Black // Fondo negro sólido
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(horizontal = 18.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Mensaje de bienvenida al hacer login
-            authState?.welcomeMessage?.let { message ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Text(
-                        text = message,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Header
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "CHECKLIST YEPAS",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                color = Color(0xFF90CAF9),
                 textAlign = TextAlign.Center
             )
-
             Text(
                 text = "Sistema de Gestión",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFFB0BEC5),
                 textAlign = TextAlign.Center
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Cards principales
+            Spacer(modifier = Modifier.height(28.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                HomeCard(
+                HomeCardPremium(
                     title = "Ejecutar\nChecklist",
-                    icon = Icons.Default.PlayArrow, // Icono material incluido
+                    icon = Icons.Default.PlayArrow,
                     onClick = onNuevaCorrida,
                     modifier = Modifier.weight(1f)
                 )
-
-                HomeCard(
+                HomeCardPremium(
                     title = "Historial",
-                    icon = Icons.Default.List,
+                    icon = Icons.AutoMirrored.Filled.List,
                     onClick = onOpenHistory,
                     modifier = Modifier.weight(1f)
                 )
             }
-
-            // Log de diagnóstico en Home
-            Log.d("HomeScreen", "🏠 Home - AuthState.roleCode: '${AuthState.roleCode}'")
-            Log.d("HomeScreen", "🏠 Home - onAdminAccess: ${if (onAdminAccess != null) "NOT NULL" else "NULL"}")
-
-            // Botón de acceso admin con verificación automática de rol
+            Spacer(modifier = Modifier.height(32.dp))
+            // Divisor visual
+            androidx.compose.material3.HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(0.8f),
+                thickness = 1.5.dp,
+                color = Color(0xFF90CAF9).copy(alpha = 0.22f)
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            // Botón Administración premium
             onAdminAccess?.let { adminCallback ->
-                Log.d("HomeScreen", "🏠 Home - Mostrando AdminAccessButton")
-                Spacer(modifier = Modifier.height(8.dp))
-
                 Card(
                     onClick = adminCallback,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        containerColor = Color(0xFF263040)
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 16.dp,
+                        pressedElevation = 22.dp
+                    ),
+                    border = BorderStroke(1.5.dp, Color(0xFF90CAF9).copy(alpha = 0.18f))
                 ) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxSize()
+                            .padding(horizontal = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Icon(
                             Icons.Default.Settings,
                             contentDescription = "Administración",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(24.dp)
+                            tint = Color(0xFF90CAF9),
+                            modifier = Modifier.size(28.dp)
                         )
                         Spacer(modifier = Modifier.size(12.dp))
                         Text(
-                            "Administración",
+                            text = "Administración",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF90CAF9),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Botón de logout si se proporciona authVM
+            Spacer(modifier = Modifier.height(28.dp))
+            // Botón de logout premium
             authVM?.let {
-                OutlinedButton(
+                Button(
                     onClick = {
                         vm.clearCache()
                         authVM.logout(onLogout)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth(0.75f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF181C22),
+                        contentColor = Color(0xFF90CAF9)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    )
                 ) {
                     Icon(
-                        Icons.Default.ExitToApp,
+                        Icons.AutoMirrored.Filled.ExitToApp,
                         contentDescription = "Cerrar sesión",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
                     Text(
                         "Cerrar sesión",
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }
 
 @Composable
-private fun HomeCard(
+private fun HomeCardPremium(
     title: String,
     icon: ImageVector,
     onClick: () -> Unit,
@@ -216,32 +202,37 @@ private fun HomeCard(
     Card(
         onClick = onClick,
         modifier = modifier.height(140.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = Color(0xFF232A36),
+            contentColor = Color(0xFF90CAF9)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 18.dp,
+            pressedElevation = 24.dp,
+            hoveredElevation = 20.dp
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(vertical = 14.dp, horizontal = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF90CAF9),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Icon(
                 imageVector = icon,
                 contentDescription = title,
                 modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
+                tint = Color(0xFF90CAF9)
             )
         }
     }

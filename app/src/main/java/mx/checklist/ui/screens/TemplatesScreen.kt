@@ -4,27 +4,24 @@ import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.TemplateDto
@@ -96,8 +93,14 @@ fun TemplatesScreen(
 
         // Sugeridas
         if (recommendedUnique.isNotEmpty()) {
-            item { Divider(Modifier.padding(vertical = 8.dp)) }
-            item { Text("Sugeridas para hoy ($suggestedGroup)", style = MaterialTheme.typography.titleMedium) }
+            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+            item {
+                Text(
+                    "Sugeridas para hoy ($suggestedGroup)",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             items(
                 items = recommendedUnique,
                 key = { t -> "rec-${t.id}" }
@@ -113,8 +116,14 @@ fun TemplatesScreen(
 
         // Lunes y Martes
         if (groupLM.isNotEmpty()) {
-            item { Divider(Modifier.padding(vertical = 8.dp)) }
-            item { Text("Lunes y Martes", style = MaterialTheme.typography.titleMedium) }
+            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+            item {
+                Text(
+                    "Lunes y Martes",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             items(
                 items = groupLM,
                 key = { t -> "lm-${t.id}" }
@@ -129,8 +138,14 @@ fun TemplatesScreen(
 
         // Miércoles a Domingo
         if (groupMD.isNotEmpty()) {
-            item { Divider(Modifier.padding(vertical = 8.dp)) }
-            item { Text("Miércoles a Domingo", style = MaterialTheme.typography.titleMedium) }
+            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+            item {
+                Text(
+                    "Miércoles a Domingo",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             items(
                 items = groupMD,
                 key = { t -> "md-${t.id}" }
@@ -145,8 +160,14 @@ fun TemplatesScreen(
 
         // Otros (por si agregas más en el futuro)
         if (others.isNotEmpty()) {
-            item { Divider(Modifier.padding(vertical = 8.dp)) }
-            item { Text("Otros", style = MaterialTheme.typography.titleMedium) }
+            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+            item {
+                Text(
+                    "Otros",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             items(
                 items = others,
                 key = { t -> "oth-${t.id}" }
@@ -170,16 +191,34 @@ private fun TemplateCard(
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !loading) { onCreate() }
+            .clickable(enabled = !loading) { onCreate() },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = 4.dp,
+            pressedElevation = 10.dp
+        )
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(t.name, style = MaterialTheme.typography.titleMedium)
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                t.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
             val meta = listOfNotNull(
                 t.scope?.takeIf { it.isNotBlank() }?.let { "Ámbito: $it" },
                 t.frequency?.takeIf { it.isNotBlank() }?.let { "Frecuencia: $it" },
                 t.version?.let { "Versión: $it" }
             ).joinToString("  •  ")
-            if (meta.isNotBlank()) Text(meta, style = MaterialTheme.typography.bodySmall)
+            if (meta.isNotBlank()) {
+                Text(
+                    meta,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             // Texto indicativo en lugar de botón (ya que toda la tarjeta es clickeable)
             Text(
@@ -187,8 +226,10 @@ private fun TemplateCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.End
+                textAlign = TextAlign.End,
+                fontWeight = FontWeight.Medium
             )
         }
     }
 }
+
