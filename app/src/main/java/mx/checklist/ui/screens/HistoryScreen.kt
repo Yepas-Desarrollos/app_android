@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.RunSummaryDto
 import mx.checklist.data.auth.AuthState
@@ -46,13 +47,15 @@ fun HistoryScreen(
 
     LaunchedEffect(Unit) {
         vm.loadPendingRuns(all = true) // todos los borradores
-        vm.loadHistoryRuns(limit = 1000)           // todos los enviados (hasta 1000)
+        vm.loadHistoryRunsPaginated(limit = 50) // usar paginación para enviados
     }
 
     val loading by vm.loading.collectAsStateWithLifecycle()
+    val loadingMore by vm.loadingMoreHistory.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val pending by vm.pendingRunsFlow().collectAsStateWithLifecycle()
     val history by vm.historyRunsFlow().collectAsStateWithLifecycle()
+    val historyPagination by vm.historyPagination.collectAsStateWithLifecycle()
 
     // Estados del adminVM si está disponible
     val adminLoading = adminVM?.loading?.collectAsStateWithLifecycle()?.value ?: false
@@ -117,6 +120,49 @@ fun HistoryScreen(
                         onDelete = if (isAdmin) { { showDeleteDialog = r } } else null
                     )
                 }
+
+                // Indicador de paginación y botón cargar más
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Mostrar información de paginación
+                        Text(
+                            text = "Mostrando ${history.size} de ${historyPagination.total} corridas",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        // Botón cargar más si hay más páginas
+                        if (historyPagination.hasMore) {
+                            Button(
+                                onClick = { vm.loadMoreHistory() },
+                                enabled = !loadingMore,
+                                modifier = Modifier.fillMaxWidth(0.8f)
+                            ) {
+                                if (loadingMore) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Cargando...")
+                                } else {
+                                    Text("Cargar más (Página ${historyPagination.page + 1} de ${historyPagination.totalPages})")
+                                }
+                            }
+                        } else if (history.isNotEmpty()) {
+                            Text(
+                                text = "✓ Todas las corridas cargadas",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -156,8 +202,8 @@ fun HistoryScreen(
                 Button(
                     onClick = {
                         adminVM?.forceDeleteRun(run.id) {
-                            // Recargar historial después de eliminar (con límite 1000)
-                            vm.loadHistoryRuns(limit = 1000)
+                            // Recargar historial después de eliminar usando paginación
+                            vm.loadHistoryRunsPaginated(limit = 50)
                             // Limpiar mensajes anteriores
                             adminVM.clearError()
                             adminVM.clearSuccess()

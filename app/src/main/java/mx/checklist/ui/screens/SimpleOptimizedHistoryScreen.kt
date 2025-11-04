@@ -45,12 +45,14 @@ fun SimpleOptimizedHistoryScreen(
     val drafts by runsVM.pendingRunsFlow().collectAsStateWithLifecycle()
     val submitted by runsVM.historyRunsFlow().collectAsStateWithLifecycle()
     val loading by runsVM.loading.collectAsStateWithLifecycle()
+    val loadingMore by runsVM.loadingMoreHistory.collectAsStateWithLifecycle()
     val error by runsVM.error.collectAsStateWithLifecycle()
-    
+    val historyPagination by runsVM.historyPagination.collectAsStateWithLifecycle()
+
     LaunchedEffect(Unit) {
         runsVM.loadPendingRuns(all = true)
-        // Cargar TODOS los checklists enviados (hasta 1000)
-        runsVM.loadHistoryRuns(limit = 1000)
+        // Usar paginación para checklists enviados
+        runsVM.loadHistoryRunsPaginated(limit = 50)
     }
     
     LaunchedEffect(error) {
@@ -179,6 +181,49 @@ fun SimpleOptimizedHistoryScreen(
                                 onOpen = { onOpenRun(run.id, run.storeCode, run.templateName) },
                                 onDelete = { showDeleteDialog = run }
                             )
+                        }
+
+                        // Paginación solo para enviados
+                        if (selectedTab == 1) {
+                            item {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Mostrando ${submitted.size} de ${historyPagination.total} corridas",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    if (historyPagination.hasMore) {
+                                        Button(
+                                            onClick = { runsVM.loadMoreHistory() },
+                                            enabled = !loadingMore,
+                                            modifier = Modifier.fillMaxWidth(0.8f)
+                                        ) {
+                                            if (loadingMore) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(20.dp),
+                                                    strokeWidth = 2.dp
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Text("Cargando...")
+                                            } else {
+                                                Text("Cargar más (${historyPagination.page + 1}/${historyPagination.totalPages})")
+                                            }
+                                        }
+                                    } else if (submitted.isNotEmpty()) {
+                                        Text(
+                                            text = "✓ Todas las corridas cargadas",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

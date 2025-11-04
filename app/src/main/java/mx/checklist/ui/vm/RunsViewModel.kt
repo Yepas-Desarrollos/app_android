@@ -33,6 +33,13 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     private val _historyRuns = MutableStateFlow<List<RunSummaryDto>>(emptyList())
     fun historyRunsFlow(): StateFlow<List<RunSummaryDto>> = _historyRuns
 
+    // NUEVO: Paginación para historial
+    private val _historyPagination = MutableStateFlow(PaginationInfo())
+    val historyPagination: StateFlow<PaginationInfo> = _historyPagination
+
+    private val _loadingMoreHistory = MutableStateFlow(false)
+    val loadingMoreHistory: StateFlow<Boolean> = _loadingMoreHistory
+
     private val _evidenceError = MutableStateFlow<String?>(null)
     val evidenceError: StateFlow<String?> = _evidenceError
 
@@ -72,6 +79,8 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         _runInfo.value = null
         _pendingRuns.value = emptyList()
         _historyRuns.value = emptyList()
+        _historyPagination.value = PaginationInfo()
+        _loadingMoreHistory.value = false
         _error.value = null
         _evidenceError.value = null
         _uploadingImages.value = emptySet()
@@ -95,6 +104,57 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
 
     fun loadHistoryRuns(limit: Int? = 20, storeCode: String? = null) {
         viewModelScope.launch { safe { _historyRuns.value = repo.historyRuns(limit, storeCode) } }
+    }
+
+    // NUEVO: Cargar historial con paginación (primera página)
+    fun loadHistoryRunsPaginated(limit: Int = 50) {
+        viewModelScope.launch {
+            safe {
+                val response = repo.historyRunsPaginated(page = 1, limit = limit)
+                _historyRuns.value = response.data
+                _historyPagination.value = PaginationInfo(
+                    page = response.pagination.page,
+                    limit = response.pagination.limit,
+                    total = response.pagination.total,
+                    totalPages = response.pagination.totalPages,
+                    hasMore = response.pagination.hasMore
+                )
+            }
+        }
+    }
+
+    // NUEVO: Cargar más páginas del historial
+    fun loadMoreHistory() {
+        val currentPagination = _historyPagination.value
+
+        // Si ya estamos cargando o no hay más, no hacer nada
+        if (_loadingMoreHistory.value || !currentPagination.hasMore) return
+
+        viewModelScope.launch {
+            _loadingMoreHistory.value = true
+            try {
+                val response = repo.historyRunsPaginated(
+                    page = currentPagination.page + 1,
+                    limit = currentPagination.limit
+                )
+
+                // Agregar los nuevos datos a la lista existente
+                _historyRuns.value = _historyRuns.value + response.data
+
+                // Actualizar la paginación
+                _historyPagination.value = PaginationInfo(
+                    page = response.pagination.page,
+                    limit = response.pagination.limit,
+                    total = response.pagination.total,
+                    totalPages = response.pagination.totalPages,
+                    hasMore = response.pagination.hasMore
+                )
+            } catch (e: Exception) {
+                _error.value = "Error al cargar más resultados: ${e.message}"
+            } finally {
+                _loadingMoreHistory.value = false
+            }
+        }
     }
 
     fun loadRunItems(runId: Long) {
