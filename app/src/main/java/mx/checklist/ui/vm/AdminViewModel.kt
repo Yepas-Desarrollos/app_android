@@ -416,12 +416,12 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
             safe("Creando template...") {
                 val request = CreateTemplateDto(
                     name = name,
-                    scope = scope, // ✅ Enviar scope en español
+                    scope = scope, //  Enviar scope en español
                     items = items
                 )
                 val result = repo.adminCreateTemplate(request)
 
-                // ✅ WORKAROUND: Crear automáticamente una sección "Items" para mantener compatibilidad con backend
+                //  WORKAROUND: Crear automáticamente una sección "Items" para mantener compatibilidad con backend
                 // El usuario no la verá, pero es necesaria para que el backend acepte los items
                 try {
                     val dummySection = SectionTemplateCreateDto(
