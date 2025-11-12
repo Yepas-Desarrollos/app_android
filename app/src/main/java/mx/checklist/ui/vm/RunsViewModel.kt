@@ -37,6 +37,9 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
     private val _historyPagination = MutableStateFlow(PaginationInfo())
     val historyPagination: StateFlow<PaginationInfo> = _historyPagination
 
+    private val _totalEnviados = MutableStateFlow(0)
+    val totalEnviados: StateFlow<Int> = _totalEnviados
+
     private val _loadingMoreHistory = MutableStateFlow(false)
     val loadingMoreHistory: StateFlow<Boolean> = _loadingMoreHistory
 
@@ -80,6 +83,7 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
         _pendingRuns.value = emptyList()
         _historyRuns.value = emptyList()
         _historyPagination.value = PaginationInfo()
+        _totalEnviados.value = 0
         _loadingMoreHistory.value = false
         _error.value = null
         _evidenceError.value = null
@@ -119,6 +123,8 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                     totalPages = response.pagination.totalPages,
                     hasMore = response.pagination.hasMore
                 )
+                // Asignar el total de enviados
+                _totalEnviados.value = response.pagination.total
             }
         }
     }
@@ -149,6 +155,8 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
                     totalPages = response.pagination.totalPages,
                     hasMore = response.pagination.hasMore
                 )
+                // Mantener el total actualizado
+                _totalEnviados.value = response.pagination.total
             } catch (e: Exception) {
                 _error.value = "Error al cargar más resultados: ${e.message}"
             } finally {

@@ -3,9 +3,6 @@ package mx.checklist.ui
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -18,8 +15,6 @@ import androidx.navigation.navArgument
 import mx.checklist.ui.screens.ItemsScreen
 import mx.checklist.ui.screens.LoginScreen
 import mx.checklist.ui.screens.HomeScreen
-import mx.checklist.ui.screens.HistoryScreen
-import mx.checklist.ui.screens.RunScreen
 import mx.checklist.ui.screens.StoresScreen
 import mx.checklist.ui.screens.TemplatesScreen
 import mx.checklist.ui.screens.SimpleOptimizedHistoryScreen
@@ -95,19 +90,11 @@ fun AppNavHost(
         }
 
         composable(NavRoutes.HISTORY) {
-            if (ENABLE_PAGINATION_OPTIMIZATIONS) {
-                SimpleOptimizedHistoryScreen(
-                    runsVM = runsVM,
-                    adminVM = adminVM,
-                    onOpenRun = { runId, _, _ -> nav.navigate(NavRoutes.run(runId)) }
-                )
-            } else {
-                HistoryScreen(
-                    vm = runsVM,
-                    adminVM = adminVM,
-                    onOpenRun = { runId, _, _ -> nav.navigate(NavRoutes.run(runId)) }
-                )
-            }
+            SimpleOptimizedHistoryScreen(
+                runsVM = runsVM,
+                adminVM = adminVM,
+                onOpenRun = { runId, _, _ -> nav.navigate(NavRoutes.run(runId)) }
+            )
         }
 
         composable(NavRoutes.STORES) {

@@ -48,6 +48,7 @@ fun SimpleOptimizedHistoryScreen(
     val loadingMore by runsVM.loadingMoreHistory.collectAsStateWithLifecycle()
     val error by runsVM.error.collectAsStateWithLifecycle()
     val historyPagination by runsVM.historyPagination.collectAsStateWithLifecycle()
+    val totalEnviados by runsVM.totalEnviados.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         runsVM.loadPendingRuns(all = true)
@@ -120,7 +121,7 @@ fun SimpleOptimizedHistoryScreen(
                     onClick = { selectedTab = 1 },
                     text = {
                         Text(
-                            "Enviados (${submitted.size})",
+                            "Enviados ($totalEnviados)",
                             fontWeight = if (selectedTab == 1) FontWeight.SemiBold else FontWeight.Normal
                         )
                     },
@@ -192,7 +193,7 @@ fun SimpleOptimizedHistoryScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "Mostrando ${submitted.size} de ${historyPagination.total} corridas",
+                                        text = "Mostrando ${submitted.size} de ${historyPagination.total} checklists enviados",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -216,7 +217,7 @@ fun SimpleOptimizedHistoryScreen(
                                         }
                                     } else if (submitted.isNotEmpty()) {
                                         Text(
-                                            text = "✓ Todas las corridas cargadas",
+                                            text = "✓ Todas los checklists cargadas",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Medium
