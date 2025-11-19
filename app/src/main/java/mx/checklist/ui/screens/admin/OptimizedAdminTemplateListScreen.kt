@@ -31,7 +31,9 @@ fun OptimizedAdminTemplateListScreen(
     val error by vm.error.collectAsStateWithLifecycle()
     val success by vm.operationSuccess.collectAsStateWithLifecycle()
     val templates by vm.templates.collectAsStateWithLifecycle()
-    
+    val templatePagination by vm.templatePagination.collectAsStateWithLifecycle()
+    val loadingMore by vm.loadingMoreTemplates.collectAsStateWithLifecycle()
+
     // Cargar templates al inicio
     LaunchedEffect(Unit) {
         vm.loadTemplates()
@@ -56,7 +58,7 @@ fun OptimizedAdminTemplateListScreen(
                 )
                 if (templates.isNotEmpty()) {
                     Text(
-                        text = "${templates.size} checklists disponibles",
+                        text = "Mostrando ${templates.size} de ${templatePagination.total} checklists",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -138,6 +140,51 @@ fun OptimizedAdminTemplateListScreen(
                             vm.updateTemplateStatus(template.id, isActive) {}
                         }
                     )
+                }
+
+                // Botón "Cargar más" si hay más templates
+                if (templatePagination.hasMore || loadingMore) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Mostrando ${templates.size} de ${templatePagination.total}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            if (templatePagination.hasMore) {
+                                Button(
+                                    onClick = { vm.loadMoreTemplates() },
+                                    enabled = !loadingMore,
+                                    modifier = Modifier.fillMaxWidth(0.8f)
+                                ) {
+                                    if (loadingMore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Cargando...")
+                                    } else {
+                                        Text("Cargar más (Página ${templatePagination.page + 1}/${templatePagination.totalPages})")
+                                    }
+                                }
+                            } else if (templates.isNotEmpty()) {
+                                Text(
+                                    text = "✓ Todos los checklists cargados",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -2,6 +2,7 @@ package mx.checklist.ui.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -9,6 +10,7 @@ import mx.checklist.data.Repo
 import mx.checklist.data.api.dto.*
 import mx.checklist.data.auth.AuthState
 import kotlin.math.abs
+import javax.inject.Inject
 
 sealed class ChecklistStructureUiState {
     object Loading : ChecklistStructureUiState()
@@ -28,7 +30,10 @@ data class ValidationState(
     val invalidItemIds: List<Long> = emptyList()
 )
 
-class ChecklistStructureViewModel(private val repo: Repo) : ViewModel() {
+@HiltViewModel
+class ChecklistStructureViewModel @Inject constructor(
+    private val repo: Repo
+) : ViewModel() {
     private val _uiState = MutableStateFlow<ChecklistStructureUiState>(ChecklistStructureUiState.Loading)
     val uiState: StateFlow<ChecklistStructureUiState> = _uiState
 

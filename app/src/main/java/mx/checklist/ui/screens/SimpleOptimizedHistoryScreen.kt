@@ -22,6 +22,7 @@ import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.dto.RunSummaryDto
 import mx.checklist.ui.vm.AdminViewModel
 import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.ui.components.LoadingHistorySkeleton
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -131,20 +132,7 @@ fun SimpleOptimizedHistoryScreen(
 
             // Contenido
             if (loading && drafts.isEmpty() && submitted.isEmpty()) {
-                Box(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "Cargando...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                LoadingHistorySkeleton(modifier = Modifier.weight(1f))
             } else {
                 val currentList = if (selectedTab == 0) drafts else submitted
 
@@ -193,7 +181,7 @@ fun SimpleOptimizedHistoryScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "Mostrando ${submitted.size} de ${historyPagination.total} checklists enviados",
+                                        text = "Mostrando ${submitted.size} de ${historyPagination.total} corridas",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -217,7 +205,7 @@ fun SimpleOptimizedHistoryScreen(
                                         }
                                     } else if (submitted.isNotEmpty()) {
                                         Text(
-                                            text = "✓ Todas los checklists cargadas",
+                                            text = "✓ Todas las corridas cargadas",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Medium

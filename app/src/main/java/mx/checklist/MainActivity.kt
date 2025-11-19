@@ -4,15 +4,16 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import mx.checklist.data.Repo
+import coil.Coil
+import coil.ImageLoader
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
+import dagger.hilt.android.AndroidEntryPoint
 import mx.checklist.data.TokenStore
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
@@ -23,21 +24,43 @@ import mx.checklist.ui.vm.RunsViewModel
 import mx.checklist.ui.vm.AdminViewModel
 import mx.checklist.ui.vm.AssignmentViewModel
 import mx.checklist.ui.vm.ChecklistStructureViewModel
+import java.io.File
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var tokenStore: TokenStore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val tokenStore = TokenStore(this)
-        val repo = Repo(tokenStore = tokenStore)
+        // Configurar caché de imágenes con límite
+        val imageLoader = ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.5)  // 50% del heap
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .maxSizePercent(0.02)  // 2% del storage
+                    .directory(File(cacheDir, "image_cache"))
+                    .build()
+            }
+            .build()
+        Coil.setImageLoader(imageLoader)
 
         setContent {
-            ChecklistTheme {  // ✅ Cambiado de MaterialTheme a ChecklistTheme
-                val authVM = viewModel<AuthViewModel>(factory = SimpleFactory { AuthViewModel(repo) })
-                val runsVM = viewModel<RunsViewModel>(factory = SimpleFactory { RunsViewModel(repo) })
-                val adminVM = viewModel<AdminViewModel>(factory = SimpleFactory { AdminViewModel(repo) })
-                val assignmentVM = viewModel<AssignmentViewModel>(factory = SimpleFactory { AssignmentViewModel(repo) })
-                val checklistVM = viewModel<ChecklistStructureViewModel>(factory = SimpleFactory { ChecklistStructureViewModel(repo) })
+            ChecklistTheme {
+                // ✅ Usar hiltViewModel() - inyección automática de Hilt
+                // Esto DEBE estar dentro de setContent (función Composable)
+                val authVM: AuthViewModel = hiltViewModel<AuthViewModel>()
+                val runsVM: RunsViewModel = hiltViewModel<RunsViewModel>()
+                val adminVM: AdminViewModel = hiltViewModel<AdminViewModel>()
+                val assignmentVM: AssignmentViewModel = hiltViewModel<AssignmentViewModel>()
+                val checklistVM: ChecklistStructureViewModel = hiltViewModel<ChecklistStructureViewModel>()
 
                 // Inicializar AuthState si hay token guardado
                 LaunchedEffect(Unit) {
@@ -76,9 +99,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
-
-class SimpleFactory(private val creator: () -> ViewModel) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = creator() as T
 }

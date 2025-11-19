@@ -100,12 +100,6 @@ interface Api {
     @GET("admin/templates")
     suspend fun adminGetTemplates(): List<AdminTemplateDto>
 
-    // Admin templates paginados
-    @GET("admin/templates")
-    suspend fun adminGetTemplatesPaginated(
-        @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20
-    ): PaginatedAdminTemplatesResponse
 
     @POST("admin/templates")
     suspend fun adminCreateTemplate(@Body body: CreateTemplateDto): CreateTemplateRes

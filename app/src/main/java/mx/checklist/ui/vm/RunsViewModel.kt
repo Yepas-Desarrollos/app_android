@@ -2,13 +2,18 @@ package mx.checklist.ui.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import mx.checklist.data.Repo
 import mx.checklist.data.api.dto.*
+import javax.inject.Inject
 
-class RunsViewModel(private val repo: Repo) : ViewModel() {
+@HiltViewModel
+class RunsViewModel @Inject constructor(
+    private val repo: Repo
+) : ViewModel() {
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
@@ -503,7 +508,36 @@ class RunsViewModel(private val repo: Repo) : ViewModel() {
             _loading.value = true
             block()
         } catch (t: Throwable) {
-            _error.value = t.message ?: "Error inesperado"
+            // No mostrar errores si fue cancelada la corrutina
+            if (t is kotlinx.coroutines.CancellationException) {
+                throw t  // Relanzar para que la corrutina se cancele correctamente
+            }
+
+            // Mensajes de error específicos por tipo de excepción
+            _error.value = when {
+                t.message?.contains("timeout", ignoreCase = true) == true ->
+                    "Error de conexión: La solicitud tardó demasiado. Verifica tu conexión."
+                t.message?.contains("network", ignoreCase = true) == true ->
+                    "Error de red: No hay conexión a internet."
+                t.message?.contains("ConnectException", ignoreCase = true) == true ->
+                    "Error de conexión: No se pudo conectar. Verifica tu internet."
+                t.message?.contains("401", ignoreCase = true) == true ->
+                    "Sesión expirada: Por favor, inicia sesión nuevamente."
+                t.message?.contains("403", ignoreCase = true) == true ->
+                    "No tienes permisos para realizar esta acción."
+                t.message?.contains("404", ignoreCase = true) == true ->
+                    "El recurso solicitado no existe."
+                t.message?.contains("409", ignoreCase = true) == true ->
+                    "Conflicto: Los datos han sido modificados. Recarga e intenta de nuevo."
+                t.message?.contains("413", ignoreCase = true) == true ->
+                    "Error: El archivo es demasiado grande."
+                t.message?.contains("500", ignoreCase = true) == true ->
+                    "Error del servidor: Intenta más tarde."
+                t.message?.contains("502", ignoreCase = true) == true ||
+                t.message?.contains("503", ignoreCase = true) == true ->
+                    "Servidor no disponible: Intenta más tarde."
+                else -> t.message ?: "Error inesperado"
+            }
             t.printStackTrace()
         } finally {
             _loading.value = false

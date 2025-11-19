@@ -3,6 +3,7 @@ package mx.checklist.ui.vm
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -10,6 +11,7 @@ import mx.checklist.data.Repo
 import mx.checklist.data.auth.Authenticated
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
+import javax.inject.Inject
 
 data class LoginState(
     val loading: Boolean = false,
@@ -22,7 +24,10 @@ data class LoginState(
  * ViewModel de Autenticación (sustituye al previo LoginVM).
  * Mantén este nombre de clase para que coincida con MainActivity.
  */
-class AuthViewModel(private val repo: Repo) : ViewModel() {
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+    private val repo: Repo
+) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
     val state: StateFlow<LoginState> = _state

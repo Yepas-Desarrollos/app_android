@@ -1,51 +1,73 @@
 package mx.checklist.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.map
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import mx.checklist.data.auth.Authenticated
 
-private val Context.dataStore by preferencesDataStore(name = "auth")
+class TokenStore(context: Context) {
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
 
-class TokenStore(ctx: Context) {
-  private val store = ctx.dataStore
-  private val TOKEN_KEY = stringPreferencesKey("jwt")
-  private val ROLE_KEY = stringPreferencesKey("roleCode")
+    private val encryptedPrefs = EncryptedSharedPreferences.create(
+        context,
+        "encrypted_auth",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
-  val tokenFlow = store.data.map { it[TOKEN_KEY] }
-  val roleCodeFlow = store.data.map { it[ROLE_KEY] }
+    private val _tokenFlow = MutableStateFlow<String?>(null)
+    val tokenFlow: StateFlow<String?> = _tokenFlow
 
-  suspend fun saveToken(token: String) {
-    store.edit { it[TOKEN_KEY] = token }
-  }
+    private val _roleCodeFlow = MutableStateFlow<String?>(null)
+    val roleCodeFlow: StateFlow<String?> = _roleCodeFlow
 
-  suspend fun saveRoleCode(roleCode: String?) {
-    store.edit {
-      if (roleCode != null) {
-        it[ROLE_KEY] = roleCode
-      } else {
-        it.remove(ROLE_KEY)
-      }
+    init {
+        // Cargar datos guardados
+        val savedToken = encryptedPrefs.getString("jwt", null)
+        _tokenFlow.value = savedToken
+
+        val savedRoleCode = encryptedPrefs.getString("roleCode", null)
+        _roleCodeFlow.value = savedRoleCode
     }
-  }
 
-  suspend fun save(auth: Authenticated) {
-    store.edit {
-      it[TOKEN_KEY] = auth.token
-      if (auth.roleCode != null) {
-        it[ROLE_KEY] = auth.roleCode
-      } else {
-        it.remove(ROLE_KEY)
-      }
+    suspend fun saveToken(token: String) {
+        encryptedPrefs.edit().putString("jwt", token).apply()
+        _tokenFlow.value = token
     }
-  }
 
-  suspend fun clear() {
-    store.edit {
-      it.remove(TOKEN_KEY)
-      it.remove(ROLE_KEY)
+    suspend fun saveRoleCode(roleCode: String?) {
+        val editor = encryptedPrefs.edit()
+        if (roleCode != null) {
+            editor.putString("roleCode", roleCode)
+        } else {
+            editor.remove("roleCode")
+        }
+        editor.apply()
+        _roleCodeFlow.value = roleCode
     }
-  }
+
+    suspend fun save(auth: Authenticated) {
+        encryptedPrefs.edit().apply {
+            putString("jwt", auth.token)
+            if (auth.roleCode != null) {
+                putString("roleCode", auth.roleCode)
+            } else {
+                remove("roleCode")
+            }
+        }.apply()
+
+        _tokenFlow.value = auth.token
+        _roleCodeFlow.value = auth.roleCode
+    }
+
+    suspend fun clear() {
+        encryptedPrefs.edit().clear().apply()
+        _tokenFlow.value = null
+        _roleCodeFlow.value = null
+    }
 }

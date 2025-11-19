@@ -2,6 +2,7 @@ package mx.checklist.ui.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,8 +11,10 @@ import retrofit2.HttpException
 import org.json.JSONObject
 import mx.checklist.data.Repo
 import mx.checklist.data.api.dto.*
+import javax.inject.Inject
 
-class AssignmentViewModel(
+@HiltViewModel
+class AssignmentViewModel @Inject constructor(
     private val repo: Repo
 ) : ViewModel() {
     

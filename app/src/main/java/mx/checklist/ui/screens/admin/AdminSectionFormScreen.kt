@@ -319,27 +319,9 @@ fun AdminSectionFormScreen(
                             )
                         }
 
-                        // Validación de suma de porcentajes de items
-                        val items = currentSection.items
-                        val totalItemPercentage = items.sumOf { it.percentage ?: 0.0 }
-                        val isItemPercentageValid = totalItemPercentage.roundToInt() == 100
-
-                        // Mostrar advertencia si la suma de porcentajes no es 100
-                        if (!isItemPercentageValid && items.isNotEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                            ) {
-                                Text(
-                                    text = "La suma de porcentajes de los ítems debe ser 100%. Actual: ${"%.2f".format(totalItemPercentage)}%",
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(8.dp)
-                                )
-                            }
-                        }
 
                         // Botón para distribuir porcentajes equitativamente entre ítems
-                        if (items.isNotEmpty()) {
+                        if (currentSection.items.isNotEmpty()) {
                             Button(
                                 onClick = {
                                     showDistributeDialog = true

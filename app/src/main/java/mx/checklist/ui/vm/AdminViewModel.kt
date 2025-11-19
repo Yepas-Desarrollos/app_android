@@ -2,14 +2,19 @@ package mx.checklist.ui.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
 import mx.checklist.data.Repo
 import mx.checklist.data.api.dto.*
+import javax.inject.Inject
 
-class AdminViewModel(private val repo: Repo) : ViewModel() {
+@HiltViewModel
+class AdminViewModel @Inject constructor(
+    private val repo: Repo
+) : ViewModel() {
     fun createSection(checklistId: Long, name: String = "Nueva sección", percentage: Double = 0.0, orderIndex: Int? = null, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Creando sección...") {
@@ -371,6 +376,12 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
     private val _templates = MutableStateFlow<List<AdminTemplateDto>>(emptyList())
     val templates: StateFlow<List<AdminTemplateDto>> = _templates
 
+    private val _templatePagination = MutableStateFlow(PaginationInfo())
+    val templatePagination: StateFlow<PaginationInfo> = _templatePagination
+
+    private val _loadingMoreTemplates = MutableStateFlow(false)
+    val loadingMoreTemplates: StateFlow<Boolean> = _loadingMoreTemplates
+
     private val _currentTemplate = MutableStateFlow<AdminTemplateDto?>(null)
     val currentTemplate: StateFlow<AdminTemplateDto?> = _currentTemplate
 
@@ -385,13 +396,52 @@ class AdminViewModel(private val repo: Repo) : ViewModel() {
         _currentTemplate.value = null
     }
 
-    fun loadTemplates() {
+    fun loadTemplates(limit: Int = 50) {
         viewModelScope.launch {
             safe("Cargando templates...") {
                 Log.d("AdminViewModel", "Loading admin templates...")
-                val result = repo.adminGetTemplates()
-                Log.d("AdminViewModel", "Loaded ${result.size} admin templates")
-                _templates.value = result
+                val response = repo.adminGetTemplatesPaginated(page = 1, limit = limit)
+                Log.d("AdminViewModel", "Loaded ${response.data.size} admin templates")
+                _templates.value = response.data
+                _templatePagination.value = PaginationInfo(
+                    page = response.pagination.page,
+                    limit = response.pagination.limit,
+                    total = response.pagination.total,
+                    totalPages = response.pagination.totalPages,
+                    hasMore = response.pagination.hasMore
+                )
+            }
+        }
+    }
+
+    fun loadMoreTemplates() {
+        val currentPagination = _templatePagination.value
+
+        if (_loadingMoreTemplates.value || !currentPagination.hasMore) return
+
+        viewModelScope.launch {
+            _loadingMoreTemplates.value = true
+            try {
+                val response = repo.adminGetTemplatesPaginated(
+                    page = currentPagination.page + 1,
+                    limit = currentPagination.limit
+                )
+
+                // Agregar templates nuevos a la lista
+                _templates.value = _templates.value + response.data
+
+                // Actualizar paginación
+                _templatePagination.value = PaginationInfo(
+                    page = response.pagination.page,
+                    limit = response.pagination.limit,
+                    total = response.pagination.total,
+                    totalPages = response.pagination.totalPages,
+                    hasMore = response.pagination.hasMore
+                )
+            } catch (e: Exception) {
+                _error.value = "Error al cargar más templates: ${e.message}"
+            } finally {
+                _loadingMoreTemplates.value = false
             }
         }
     }

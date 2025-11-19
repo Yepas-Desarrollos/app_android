@@ -12,6 +12,9 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.File
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.ConnectException
 
 class Repo(
     private val api: Api = ApiClient.api,
@@ -22,9 +25,6 @@ class Repo(
 
     suspend fun login(req: LoginReq): Authenticated {
         val res = api.login(req)
-        
-        Log.d("Repo", "🌐 Backend response - access_token: ${res.access_token?.take(20)}...")
-        Log.d("Repo", "🌐 Backend response - roleCode: ${res.roleCode}")
         
         // Validar que tenemos los datos requeridos
         val token = res.access_token ?: throw IllegalStateException("Backend no devolvió access_token")
@@ -39,13 +39,8 @@ class Repo(
             fullName = res.fullName
         )
         
-        Log.d("Repo", "📦 Authenticated object - token: ${auth.token.take(20)}...")
-        Log.d("Repo", "📦 Authenticated object - roleCode: ${auth.roleCode}")
-        Log.d("Repo", "📦 Authenticated object - fullName: ${auth.fullName}")
-
         tokenStore.save(auth)
-        Log.d("Repo", "💾 TokenStore.save() llamado con auth")
-        
+
         ApiClient.setToken(res.access_token)
 
         // Limpia cachés por usuario
@@ -156,9 +151,28 @@ class Repo(
         return api.adminGetTemplates()
     }
 
-    // Admin templates paginados
+    // Admin templates paginados - convierte array a respuesta paginada
     suspend fun adminGetTemplatesPaginated(page: Int = 1, limit: Int = 20): PaginatedAdminTemplatesResponse {
-        return api.adminGetTemplatesPaginated(page, limit)
+        val allTemplates = api.adminGetTemplates()
+
+        // Simular paginación en cliente
+        val startIndex = (page - 1) * limit
+        val endIndex = minOf(startIndex + limit, allTemplates.size)
+        val pageData = allTemplates.subList(startIndex, endIndex)
+
+        val totalPages = (allTemplates.size + limit - 1) / limit
+        val hasMore = page < totalPages
+
+        return PaginatedAdminTemplatesResponse(
+            data = pageData,
+            pagination = PaginationDto(
+                page = page,
+                limit = limit,
+                total = allTemplates.size,
+                totalPages = totalPages,
+                hasMore = hasMore
+            )
+        )
     }
 
     suspend fun adminCreateTemplate(request: CreateTemplateDto): CreateTemplateRes {
@@ -310,4 +324,32 @@ class Repo(
 
     suspend fun getChecklistSections(checklistId: Long): List<ChecklistSectionDto> =
         api.getChecklistSections(checklistId).requireBody()
+
+    // Función helper para mejorar mensajes de error
+    private fun handleApiError(throwable: Throwable): String {
+        return when (throwable) {
+            is SocketTimeoutException -> {
+                "Error de conexión: La solicitud tardó demasiado. Verifica tu conexión."
+            }
+            is ConnectException -> {
+                "Error de conexión: No se pudo conectar al servidor. Verifica tu internet."
+            }
+            is IOException -> {
+                "Error de red: ${throwable.message ?: "Verifica tu conexión a internet."}"
+            }
+            is HttpException -> {
+                when (throwable.code()) {
+                    401 -> "Sesión expirada: Por favor, inicia sesión nuevamente."
+                    403 -> "No tienes permisos para realizar esta acción."
+                    404 -> "El recurso solicitado no existe."
+                    409 -> "Conflicto: Los datos han sido modificados. Recarga e intenta de nuevo."
+                    413 -> "Error: El archivo es demasiado grande."
+                    500 -> "Error del servidor: Intenta más tarde."
+                    502, 503 -> "Servidor no disponible: Intenta más tarde."
+                    else -> "Error HTTP ${throwable.code()}: ${throwable.message()}"
+                }
+            }
+            else -> throwable.message ?: "Error inesperado"
+        }
+    }
 }
