@@ -11,4 +11,19 @@
     <string name="login_button">Entrar</string>
     <string name="error_prefix">Error: %1$s</string>
     <string name="version_format">v%1$s</string>
+
+    <!-- Error Messages -->
+    <string name="error_invalid_credentials">Usuario o contraseña incorrectos</string>
+    <string name="error_account_locked">Cuenta bloqueada. Contacta al administrador</string>
+    <string name="error_no_internet">Sin conexión a internet. Verifica tu conexión</string>
+    <string name="error_timeout">La conexión tardó demasiado. Intenta nuevamente</string>
+    <string name="error_server">Error del servidor. Intenta más tarde</string>
+    <string name="error_server_code">Error del servidor: %1$s (código %2$d)</string>
+    <string name="error_session_expired">Tu sesión expiró. Inicia sesión nuevamente</string>
+    <string name="error_unauthorized">No tienes permisos para esta acción</string>
+    <string name="error_missing_evidence">Se requieren %1$d foto(s). Actualmente tienes %2$d</string>
+    <string name="error_file_too_large">Archivo demasiado grande. Máximo %1$dMB</string>
+    <string name="error_not_found">Recurso no encontrado</string>
+    <string name="error_conflict">El recurso ya existe</string>
+    <string name="error_unknown">Error inesperado. Intenta nuevamente</string>
 </resources>

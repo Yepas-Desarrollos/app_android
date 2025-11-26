@@ -91,6 +91,12 @@ object ApiClient {
         .retryOnConnectionFailure(true)           // Reintentar en caso de fallos de conexión
         .build()
 
+    init {
+        // Log para debugging: mostrar qué URL se está usando
+        android.util.Log.d("ApiClient", "🌐 BASE_URL configurada: ${BuildConfig.BASE_URL}")
+        android.util.Log.d("ApiClient", "🔧 Flavor: ${BuildConfig.FLAVOR}")
+    }
+
     private val retrofit = Retrofit.Builder()
         .baseUrl(BuildConfig.BASE_URL) // p.ej. http://172.16.16.22:3000/
         .addConverterFactory(MoshiConverterFactory.create(moshi))

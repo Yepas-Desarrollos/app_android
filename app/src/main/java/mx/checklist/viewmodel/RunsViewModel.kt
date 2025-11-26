@@ -14,7 +14,8 @@ import javax.inject.Inject
 @HiltViewModel
 class RunsViewModel @Inject constructor(
     private val runRepo: RunRepository,
-    private val checklistRepo: ChecklistRepository
+    private val checklistRepo: ChecklistRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
     private val _loading = MutableStateFlow(false)
@@ -534,31 +535,10 @@ class RunsViewModel @Inject constructor(
                 throw t  // Relanzar para que la corrutina se cancele correctamente
             }
 
-            // Mensajes de error específicos por tipo de excepción
-            _error.value = when {
-                t.message?.contains("timeout", ignoreCase = true) == true ->
-                    "Error de conexión: La solicitud tardó demasiado. Verifica tu conexión."
-                t.message?.contains("network", ignoreCase = true) == true ->
-                    "Error de red: No hay conexión a internet."
-                t.message?.contains("ConnectException", ignoreCase = true) == true ->
-                    "Error de conexión: No se pudo conectar. Verifica tu internet."
-                t.message?.contains("401", ignoreCase = true) == true ->
-                    "Sesión expirada: Por favor, inicia sesión nuevamente."
-                t.message?.contains("403", ignoreCase = true) == true ->
-                    "No tienes permisos para realizar esta acción."
-                t.message?.contains("404", ignoreCase = true) == true ->
-                    "El recurso solicitado no existe."
-                t.message?.contains("409", ignoreCase = true) == true ->
-                    "Conflicto: Los datos han sido modificados. Recarga e intenta de nuevo."
-                t.message?.contains("413", ignoreCase = true) == true ->
-                    "Error: El archivo es demasiado grande."
-                t.message?.contains("500", ignoreCase = true) == true ->
-                    "Error del servidor: Intenta más tarde."
-                t.message?.contains("502", ignoreCase = true) == true ||
-                t.message?.contains("503", ignoreCase = true) == true ->
-                    "Servidor no disponible: Intenta más tarde."
-                else -> t.message ?: "Error inesperado"
-            }
+            // Usar ErrorMapper para mensajes claros y consistentes
+            val error = mx.checklist.utils.ErrorMapper.fromThrowable(t)
+            _error.value = error.toUserMessage(context)
+            
             t.printStackTrace()
         } finally {
             _loading.value = false

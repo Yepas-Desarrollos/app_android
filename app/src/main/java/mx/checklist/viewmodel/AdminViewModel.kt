@@ -13,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(
-    private val adminRepo: AdminRepository
+    private val adminRepo: AdminRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
     fun createSection(checklistId: Long, name: String = "Nueva sección", percentage: Double = 0.0, orderIndex: Int? = null, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
@@ -693,29 +694,10 @@ class AdminViewModel @Inject constructor(
             _loading.value = true
             block()
         } catch (t: Throwable) {
-            val errorMsg = when (t) {
-                is retrofit2.HttpException -> {
-                    // Extraer mensaje del servidor para errores HTTP
-                    try {
-                        val errorBody = t.response()?.errorBody()?.string()
-                        if (errorBody?.contains("\"message\"") == true) {
-                            // Parsear JSON simple para extraer el mensaje
-                            val messageStart = errorBody.indexOf("\"message\":\"") + 11
-                            val messageEnd = errorBody.indexOf("\"", messageStart)
-                            if (messageStart > 10 && messageEnd > messageStart) {
-                                errorBody.substring(messageStart, messageEnd)
-                            } else {
-                                "Error del servidor: ${t.message}"
-                            }
-                        } else {
-                            "Error del servidor: ${t.message}"
-                        }
-                    } catch (e: Exception) {
-                        "Error del servidor: ${t.message}"
-                    }
-                }
-                else -> "Error: ${t.message}"
-            }
+            // Usar ErrorMapper para mensajes claros y consistentes
+            val error = mx.checklist.utils.ErrorMapper.fromThrowable(t)
+            val errorMsg = error.toUserMessage(context)
+            
             Log.e("AdminViewModel", errorMsg, t)
             _error.value = errorMsg
             t.printStackTrace()

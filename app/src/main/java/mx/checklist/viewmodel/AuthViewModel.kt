@@ -13,6 +13,8 @@ import mx.checklist.data.repository.ChecklistRepository
 import mx.checklist.data.auth.Authenticated
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
+import mx.checklist.utils.ErrorMapper
+import mx.checklist.utils.ErrorContext
 import javax.inject.Inject
 
 data class LoginState(
@@ -29,7 +31,8 @@ data class LoginState(
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepo: AuthRepository,
-    private val checklistRepo: ChecklistRepository
+    private val checklistRepo: ChecklistRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -112,8 +115,16 @@ class AuthViewModel @Inject constructor(
                 // Navegar inmediatamente a Home donde se mostrará el mensaje
                 onOk()
             } catch (t: Throwable) {
-                Log.d("AuthViewModel", "❌ Error en login: ${t.message}")
-                _state.value = LoginState(error = t.message ?: "Error de login")
+                // Usar ErrorMapper con contexto LOGIN para interpretar 401 correctamente
+                val error = ErrorMapper.fromThrowable(t, ErrorContext.LOGIN)
+                val errorMessage = error.toUserMessage(context)
+                
+                Log.e("AuthViewModel", "❌ Login failed: $errorMessage", t)
+                
+                _state.value = LoginState(
+                    loading = false,
+                    error = errorMessage
+                )
             }
         }
     }
