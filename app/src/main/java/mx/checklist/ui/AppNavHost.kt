@@ -1,11 +1,15 @@
 package mx.checklist.ui
 
 import android.util.Log
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.collectLatest
+import mx.checklist.data.api.ApiClient
 import mx.checklist.data.auth.AuthState
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -58,6 +62,16 @@ fun AppNavHost(
         NavRoutes.LOGIN
     }
     
+    // Instancia local de SnackbarHostState (no requiere remember)
+    val snackbarHostState = SnackbarHostState()
+    // Manejo de sesión expirada: mostrar mensaje y navegar a login
+    LaunchedEffect(authState.authenticated, authState.error) {
+        if (authState.authenticated == null && authState.error?.contains("expirada", true) == true) {
+            snackbarHostState.showSnackbar("Sesión expirada. Por favor, inicia sesión nuevamente.")
+            nav.navigate(NavRoutes.LOGIN) { popUpTo(0) }
+        }
+    }
+
     LaunchedEffect(authState.authenticated?.roleCode) {
         AuthState.roleCode = authState.authenticated?.roleCode
     }
@@ -334,4 +348,7 @@ fun AppNavHost(
             )
         }
     }
+
+    // Renderizar el host de Snackbar global
+    SnackbarHost(hostState = snackbarHostState)
 }

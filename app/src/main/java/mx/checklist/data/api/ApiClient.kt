@@ -3,12 +3,16 @@ package mx.checklist.data.api
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import mx.checklist.BuildConfig
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 object ApiClient {
 
@@ -44,9 +48,32 @@ object ApiClient {
         .add(KotlinJsonAdapterFactory())
         .build()
 
+    // Notificador global de expiración de sesión
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
+    private val sessionHandled = AtomicBoolean(false)
+
+    /**
+     * Llamar para resetear el estado de expiración tras manejarlo en la UI
+     */
+    fun resetSessionExpired() {
+        _sessionExpired.value = false
+        sessionHandled.set(false)
+    }
+
+    // Interceptor para detectar 401 y notificar expiración de sesión
+    private val sessionInterceptor = Interceptor { chain ->
+        val response = chain.proceed(chain.request())
+        if (response.code == 401 && sessionHandled.compareAndSet(false, true)) {
+            _sessionExpired.value = true
+        }
+        response
+    }
+
     // Cliente regular para operaciones normales
     private val client = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        .addInterceptor(sessionInterceptor)
         .addInterceptor(logging)
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -56,6 +83,7 @@ object ApiClient {
     // Cliente específico para uploads con timeouts más largos
     private val uploadClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        .addInterceptor(sessionInterceptor)
         .addInterceptor(logging)
         .connectTimeout(120, TimeUnit.SECONDS)    // 2 minutos para conectar
         .readTimeout(300, TimeUnit.SECONDS)       // 5 minutos para leer respuesta

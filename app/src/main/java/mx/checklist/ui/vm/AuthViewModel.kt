@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import mx.checklist.data.Repo
 import mx.checklist.data.auth.Authenticated
@@ -35,6 +36,19 @@ class AuthViewModel @Inject constructor(
     init {
         // Validar token guardado al inicializar
         validateSavedToken()
+
+        // Observa expiración de sesión global
+        viewModelScope.launch {
+            ApiClient.sessionExpired.collectLatest { expired ->
+                if (expired) {
+                    // Ejecuta logout automático y resetea el estado
+                    logout {
+                        // Opcional: puedes mostrar un mensaje persistente en la UI
+                    }
+                    ApiClient.resetSessionExpired()
+                }
+            }
+        }
     }
 
     private fun validateSavedToken() {
