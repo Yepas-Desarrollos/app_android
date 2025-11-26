@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -27,7 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import mx.checklist.BuildConfig
 import mx.checklist.R
-import mx.checklist.ui.vm.AuthViewModel
+import mx.checklist.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
@@ -67,7 +68,7 @@ fun LoginScreen(
                 // Nombre de la aplicación arriba
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Compiti 2.0",
+                    text = stringResource(R.string.app_title),
                     style = MaterialTheme.typography.displaySmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -75,7 +76,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Bienvenido",
+                    text = stringResource(R.string.welcome),
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -101,7 +102,7 @@ fun LoginScreen(
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.yepas_login),
-                            contentDescription = "Logo Yepas",
+                            contentDescription = stringResource(R.string.logo_desc),
                             modifier = Modifier
                                 .fillMaxSize(0.9f),
                             contentScale = ContentScale.Fit
@@ -122,7 +123,7 @@ fun LoginScreen(
 
                 // Texto "Iniciar sesión" bajado aquí para congruencia con los campos
                 Text(
-                    text = "Iniciar sesión",
+                    text = stringResource(R.string.login_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold
@@ -153,12 +154,12 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
-                            label = { Text("Email") },
+                            label = { Text(stringResource(R.string.email_label)) },
                             singleLine = true,
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Email,
-                                    contentDescription = "Email",
+                                    contentDescription = stringResource(R.string.email_label),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             },
@@ -175,13 +176,13 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text("Contraseña") },
+                            label = { Text(stringResource(R.string.password_label)) },
                             singleLine = true,
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Lock,
-                                    contentDescription = "Contraseña",
+                                    contentDescription = stringResource(R.string.password_label),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             },
@@ -189,7 +190,7 @@ fun LoginScreen(
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
                                         imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+                                        contentDescription = stringResource(if (passwordVisible) R.string.hide_password else R.string.show_password),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -241,7 +242,7 @@ fun LoginScreen(
                         )
                     } else {
                         Text(
-                            text = "Entrar",
+                            text = stringResource(R.string.login_button),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -260,7 +261,7 @@ fun LoginScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "Error: $it",
+                            text = stringResource(R.string.error_prefix, it),
                             modifier = Modifier.padding(14.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             style = MaterialTheme.typography.bodySmall
@@ -273,7 +274,7 @@ fun LoginScreen(
 
             // Versión en esquina superior derecha
             Text(
-                text = "v${BuildConfig.VERSION_NAME}",
+                text = stringResource(R.string.version_format, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier

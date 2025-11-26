@@ -20,8 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.dto.RunSummaryDto
-import mx.checklist.ui.vm.AdminViewModel
-import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.viewmodel.AdminViewModel
+import mx.checklist.viewmodel.RunsViewModel
 import mx.checklist.ui.components.LoadingHistorySkeleton
 import java.text.SimpleDateFormat
 import java.util.*

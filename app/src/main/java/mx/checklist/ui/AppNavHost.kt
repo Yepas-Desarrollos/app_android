@@ -30,11 +30,11 @@ import mx.checklist.ui.screens.admin.AdminTemplateListScreen
 import mx.checklist.ui.screens.admin.AdminTemplateFormScreen
 import mx.checklist.ui.screens.admin.AdminItemFormScreen
 import mx.checklist.ui.screens.admin.AdminSectionFormScreen
-import mx.checklist.ui.vm.AuthViewModel
-import mx.checklist.ui.vm.RunsViewModel
-import mx.checklist.ui.vm.AdminViewModel
-import mx.checklist.ui.vm.AssignmentViewModel
-import mx.checklist.ui.vm.ChecklistStructureViewModel
+import mx.checklist.viewmodel.AuthViewModel
+import mx.checklist.viewmodel.RunsViewModel
+import mx.checklist.viewmodel.AdminViewModel
+import mx.checklist.viewmodel.AssignmentViewModel
+import mx.checklist.viewmodel.ChecklistStructureViewModel
 import mx.checklist.ui.screens.ChecklistStructureScreen
 import mx.checklist.ui.screens.SectionItemsScreen
 import mx.checklist.ui.navigation.NavRoutes

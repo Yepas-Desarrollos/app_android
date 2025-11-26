@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.viewmodel.RunsViewModel
 
 @Composable
 fun RunScreen(

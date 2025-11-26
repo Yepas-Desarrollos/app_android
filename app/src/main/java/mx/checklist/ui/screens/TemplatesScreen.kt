@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.TemplateDto
-import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.viewmodel.RunsViewModel
 import java.util.Calendar
 import java.util.Locale
 

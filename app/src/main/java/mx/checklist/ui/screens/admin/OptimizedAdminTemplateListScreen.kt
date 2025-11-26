@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.AdminTemplateDto
-import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.viewmodel.AdminViewModel
 
 /**
  * AdminTemplateListScreen optimizada que usa paginación automática

@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import mx.checklist.data.api.dto.AssignmentSummaryDto
 import mx.checklist.data.api.dto.AssignedStoreDto
 import mx.checklist.data.api.dto.UserAssignmentDto
-import mx.checklist.ui.vm.AssignmentViewModel
+import mx.checklist.viewmodel.AssignmentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

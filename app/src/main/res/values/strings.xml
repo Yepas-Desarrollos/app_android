@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">checklist</string>
+    <string name="app_title">Compiti 2.0</string>
+    <string name="welcome">Bienvenido</string>
+    <string name="logo_desc">Logo Yepas</string>
+    <string name="login_title">Iniciar sesión</string>
+    <string name="email_label">Email</string>
+    <string name="password_label">Contraseña</string>
+    <string name="hide_password">Ocultar contraseña</string>
+    <string name="show_password">Mostrar contraseña</string>
+    <string name="login_button">Entrar</string>
+    <string name="error_prefix">Error: %1$s</string>
+    <string name="version_format">v%1$s</string>
 </resources>

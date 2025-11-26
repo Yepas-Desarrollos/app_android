@@ -38,7 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.RunItemDto
-import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.viewmodel.RunsViewModel
 import mx.checklist.ui.fields.BarcodeField
 import mx.checklist.ui.fields.MultiSelectField
 import mx.checklist.ui.fields.ScaleField

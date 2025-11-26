@@ -56,9 +56,9 @@ import mx.checklist.ui.components.PercentageSummary
 import mx.checklist.ui.components.SectionCard
 import mx.checklist.ui.dialogs.SectionDialog
 import mx.checklist.ui.screens.readonly.ChecklistStructureReadOnlyContent
-import mx.checklist.ui.vm.ChecklistStructureUiState
-import mx.checklist.ui.vm.ChecklistStructureViewModel
-import mx.checklist.ui.vm.ValidationState
+import mx.checklist.viewmodel.ChecklistStructureUiState
+import mx.checklist.viewmodel.ChecklistStructureViewModel
+import mx.checklist.viewmodel.ValidationState
 import java.util.Locale
 import kotlin.math.abs
 

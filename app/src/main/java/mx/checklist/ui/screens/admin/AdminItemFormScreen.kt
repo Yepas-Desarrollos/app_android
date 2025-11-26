@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.viewmodel.AdminViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,4 +1,4 @@
-package mx.checklist.ui.vm
+package mx.checklist.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,7 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import mx.checklist.data.Repo
+import mx.checklist.data.repository.AdminRepository
 import mx.checklist.data.api.dto.*
 import mx.checklist.data.auth.AuthState
 import kotlin.math.abs
@@ -32,7 +32,7 @@ data class ValidationState(
 
 @HiltViewModel
 class ChecklistStructureViewModel @Inject constructor(
-    private val repo: Repo
+    private val adminRepo: AdminRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<ChecklistStructureUiState>(ChecklistStructureUiState.Loading)
     val uiState: StateFlow<ChecklistStructureUiState> = _uiState
@@ -62,7 +62,7 @@ class ChecklistStructureViewModel @Inject constructor(
 
             if (isAdmin) {
                 // Usuario admin: usa endpoint completo de admin
-                val template = repo.adminGetTemplate(checklistId)
+                val template = adminRepo.getTemplate(checklistId)
                 // Según backend: template.items[] siempre está vacío, todos los items están en sections[].items[]
                 val sections = template.sections
                 localSections = sections.toMutableList()
@@ -70,7 +70,7 @@ class ChecklistStructureViewModel @Inject constructor(
             } else {
                 // Usuario normal: usa endpoint público (solo lectura)
                 // Backend filtra automáticamente por scope del usuario
-                val template = repo.getTemplateStructure(checklistId)
+                val template = adminRepo.getTemplateStructure(checklistId)
                 val sections = template.sections
                 localSections = sections.toMutableList()
 
@@ -88,7 +88,7 @@ class ChecklistStructureViewModel @Inject constructor(
 
     fun loadSectionItems(sectionId: Long) {
         viewModelScope.launch { safe {
-            val items = repo.getSectionItems(sectionId)
+            val items = adminRepo.getSectionItems(sectionId)
             updateLocalSection(sectionId) { it.copy(items = items) }
             recomputeItemValidation(sectionId)
         }}
@@ -137,7 +137,7 @@ class ChecklistStructureViewModel @Inject constructor(
             println("[CreateSection] Enviando request: $request")
 
             try {
-                repo.createSection(checklistId, request)
+                adminRepo.createSection(checklistId, request)
                 println("[CreateSection] ✅ Sección creada exitosamente")
                 // Forzar reload desde backend para evitar desincronización
                 loadChecklistStructure(checklistId)
@@ -156,7 +156,7 @@ class ChecklistStructureViewModel @Inject constructor(
                 percentage = percentage,
                 orderIndex = existing.orderIndex
             )
-            val updated = repo.updateSection(id, updateDto)
+            val updated = adminRepo.updateSection(id, updateDto)
             localSections[localSections.indexOfFirst { it.id == id }] = updated
             publishSections(existingChecklistId())
             recomputeSectionValidation()
@@ -165,7 +165,7 @@ class ChecklistStructureViewModel @Inject constructor(
 
     fun deleteSection(id: Long) {
         viewModelScope.launch { safe {
-            repo.deleteSection(id)
+            adminRepo.deleteSection(id)
             loadChecklistStructure(existingChecklistId() ?: return@safe)
         }}
     }
@@ -173,7 +173,7 @@ class ChecklistStructureViewModel @Inject constructor(
     fun updateSectionPercentages(checklistId: Long, sections: List<SectionPercentage>) {
         viewModelScope.launch { safe {
             val payload = sections.map { SectionPercentageUpdateDto(id = it.id, percentage = it.percentage) }
-            val updated = repo.updateSectionPercentages(checklistId, payload)
+            val updated = adminRepo.updateSectionPercentages(checklistId, payload)
             localSections = updated.toMutableList()
             publishSections(checklistId)
         }}
@@ -181,7 +181,7 @@ class ChecklistStructureViewModel @Inject constructor(
 
     fun distributeSectionPercentages(checklistId: Long) {
         viewModelScope.launch { safe {
-            val updated = repo.distributeSectionPercentages(checklistId)
+            val updated = adminRepo.distributeSectionPercentages(checklistId)
             localSections = updated.toMutableList()
             publishSections(checklistId)
         }}
@@ -198,7 +198,7 @@ class ChecklistStructureViewModel @Inject constructor(
         viewModelScope.launch { safe {
             val ids = localSections.mapNotNull { it.id }
             if (ids.size == localSections.size) {
-                repo.reorderSections(checklistId, ids)
+                adminRepo.reorderSections(checklistId, ids)
             }
         }}
     }
@@ -215,7 +215,7 @@ class ChecklistStructureViewModel @Inject constructor(
                 expectedType = expectedType,
                 config = null
             )
-            repo.adminCreateItem(templateId, request)
+            adminRepo.createItem(templateId, request)
             // Recargar los ítems desde el backend para obtener el id real
             loadSectionItems(sectionId)
         }}
@@ -225,7 +225,7 @@ class ChecklistStructureViewModel @Inject constructor(
         viewModelScope.launch { safe {
             val section = localSections.firstOrNull { it.items.any { it.id == id } } ?: return@safe
             val item = section.items.first { it.id == id }
-            val updated = repo.updateSectionItem(id, item.copy(title = title, percentage = percentage))
+            val updated = adminRepo.updateSectionItem(id, item.copy(title = title, percentage = percentage))
             updateLocalSection(section.id!!) { s ->
                 s.copy(items = s.items.map { if (it.id == id) updated else it })
             }
@@ -235,7 +235,7 @@ class ChecklistStructureViewModel @Inject constructor(
     fun deleteItem(id: Long) {
         viewModelScope.launch { safe {
             val section = localSections.firstOrNull { it.items.any { it.id == id } } ?: return@safe
-            repo.deleteSectionItem(section.id!!, id)
+            adminRepo.deleteSectionItem(section.id!!, id)
             // Recargar los ítems desde el backend para mantener sincronización
             loadSectionItems(section.id!!)
         }}
@@ -244,14 +244,14 @@ class ChecklistStructureViewModel @Inject constructor(
     fun updateItemPercentages(sectionId: Long, items: List<ItemPercentage>) {
         viewModelScope.launch { safe {
             val payload = items.map { mapOf("id" to it.id, "percentage" to it.percentage) }
-            val updated = repo.updateItemPercentages(sectionId, payload)
+            val updated = adminRepo.updateItemPercentages(sectionId, payload)
             updateLocalSection(sectionId) { it.copy(items = updated) }
         }}
     }
 
     fun distributeItemPercentages(sectionId: Long) {
         viewModelScope.launch { safe {
-            val updated = repo.distributeItemPercentages(sectionId)
+            val updated = adminRepo.distributeItemPercentages(sectionId)
             updateLocalSection(sectionId) { it.copy(items = updated) }
         }}
     }
@@ -268,14 +268,14 @@ class ChecklistStructureViewModel @Inject constructor(
             val ids = reordered.mapNotNull { it.id }
             if (ids.size == reordered.size) {
                 // Nuevo endpoint: requiere sectionId y lista de IDs
-                repo.reorderItems(sectionId, ids)
+                adminRepo.reorderItems(sectionId, ids)
             }
         }}
     }
 
     fun moveItemToSection(itemId: Long, targetSectionId: Long) {
         viewModelScope.launch { safe {
-            repo.moveItemToSection(itemId, targetSectionId)
+            adminRepo.moveItemToSection(itemId, targetSectionId)
             existingChecklistId()?.let { loadChecklistStructure(it) }
         }}
     }

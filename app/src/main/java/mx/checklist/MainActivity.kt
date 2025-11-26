@@ -19,11 +19,11 @@ import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
 import mx.checklist.ui.AppNavHost
 import mx.checklist.ui.theme.ChecklistTheme
-import mx.checklist.ui.vm.AuthViewModel
-import mx.checklist.ui.vm.RunsViewModel
-import mx.checklist.ui.vm.AdminViewModel
-import mx.checklist.ui.vm.AssignmentViewModel
-import mx.checklist.ui.vm.ChecklistStructureViewModel
+import mx.checklist.viewmodel.AuthViewModel
+import mx.checklist.viewmodel.RunsViewModel
+import mx.checklist.viewmodel.AdminViewModel
+import mx.checklist.viewmodel.AssignmentViewModel
+import mx.checklist.viewmodel.ChecklistStructureViewModel
 import java.io.File
 import javax.inject.Inject
 

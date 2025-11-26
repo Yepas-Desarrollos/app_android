@@ -35,8 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import mx.checklist.ui.vm.AuthViewModel
-import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.viewmodel.AuthViewModel
+import mx.checklist.viewmodel.RunsViewModel
 
 @Composable
 fun HomeScreen(

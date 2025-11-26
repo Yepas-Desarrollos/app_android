@@ -22,7 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.FieldType
 import mx.checklist.data.api.dto.ItemTemplateDto
 import mx.checklist.data.auth.AuthState
-import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.viewmodel.AdminViewModel
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)

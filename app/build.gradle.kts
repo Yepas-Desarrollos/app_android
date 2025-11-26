@@ -19,9 +19,23 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Tu backend
-        buildConfigField("String", "BASE_URL", "\"http://3.132.216.201:3000/\"") // termina en /
 
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            // IP local (ajustar según tu red)
+            buildConfigField("String", "BASE_URL", "\"http://172.16.16.22:3000/\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            // IP AWS
+            buildConfigField("String", "BASE_URL", "\"http://3.132.216.201:3000/\"")
+        }
     }
 
     buildTypes {

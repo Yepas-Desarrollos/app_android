@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.viewmodel.AdminViewModel
 
 /**
  * AdminTemplateListScreen optimizada con datos reales

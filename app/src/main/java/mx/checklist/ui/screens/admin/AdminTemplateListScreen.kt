@@ -17,7 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.AdminTemplateDto
-import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.viewmodel.AdminViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

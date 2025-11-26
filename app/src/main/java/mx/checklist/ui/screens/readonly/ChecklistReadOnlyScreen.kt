@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import mx.checklist.data.api.dto.SectionTemplateDto
 import mx.checklist.ui.screens.toPercentageString
-import mx.checklist.ui.vm.ChecklistStructureUiState
+import mx.checklist.viewmodel.ChecklistStructureUiState
 
 @Composable
 fun ChecklistStructureReadOnlyContent(

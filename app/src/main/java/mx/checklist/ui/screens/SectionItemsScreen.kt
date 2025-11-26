@@ -53,9 +53,9 @@ import mx.checklist.ui.components.ItemCard
 import mx.checklist.ui.components.LoadingState
 import mx.checklist.ui.components.PercentageSummary
 import mx.checklist.ui.dialogs.ItemDialog
-import mx.checklist.ui.vm.ChecklistStructureUiState
-import mx.checklist.ui.vm.ChecklistStructureViewModel
-import mx.checklist.ui.vm.ValidationState
+import mx.checklist.viewmodel.ChecklistStructureUiState
+import mx.checklist.viewmodel.ChecklistStructureViewModel
+import mx.checklist.viewmodel.ValidationState
 import kotlin.math.abs
 
 private data class ItemDialogState(

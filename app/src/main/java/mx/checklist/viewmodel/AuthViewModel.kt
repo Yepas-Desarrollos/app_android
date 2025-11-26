@@ -1,4 +1,4 @@
-package mx.checklist.ui.vm
+package mx.checklist.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import mx.checklist.data.Repo
+import mx.checklist.data.repository.AuthRepository
+import mx.checklist.data.repository.ChecklistRepository
 import mx.checklist.data.auth.Authenticated
 import mx.checklist.data.auth.AuthState
 import mx.checklist.data.api.ApiClient
@@ -27,7 +28,8 @@ data class LoginState(
  */
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val repo: Repo
+    private val authRepo: AuthRepository,
+    private val checklistRepo: ChecklistRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -59,7 +61,7 @@ class AuthViewModel @Inject constructor(
                     Log.d("AuthViewModel", "🔍 Validando token guardado...")
                     
                     // Hacer una llamada simple para validar el token
-                    val stores = repo.stores() // Esta llamada requiere autenticación
+                    val stores = checklistRepo.getStores() // Esta llamada requiere autenticación
                     
                     // Si llegamos aquí, el token es válido
                     val authenticated = Authenticated(
@@ -84,7 +86,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _state.value = LoginState(loading = true)
-                val auth = repo.login(email, password)
+                val auth = authRepo.login(email, password)
                 
                 Log.d("AuthViewModel", "🔐 Login exitoso - token: ${auth.token?.take(20)}...")
                 Log.d("AuthViewModel", "🔐 Login exitoso - roleCode: ${auth.roleCode}")
@@ -126,7 +128,7 @@ class AuthViewModel @Inject constructor(
     fun logout(onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             try {
-                repo.logout()
+                authRepo.logout()
                 
                 // Limpiar AuthState global
                 AuthState.token = null

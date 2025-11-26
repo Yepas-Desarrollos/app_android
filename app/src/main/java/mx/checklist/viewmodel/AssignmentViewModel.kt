@@ -1,4 +1,4 @@
-package mx.checklist.ui.vm
+package mx.checklist.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,13 +9,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import org.json.JSONObject
-import mx.checklist.data.Repo
+import mx.checklist.data.repository.AssignmentRepository
 import mx.checklist.data.api.dto.*
 import javax.inject.Inject
 
 @HiltViewModel
 class AssignmentViewModel @Inject constructor(
-    private val repo: Repo
+    private val assignmentRepo: AssignmentRepository
 ) : ViewModel() {
     
     private val _users = MutableStateFlow<List<AssignableUserDto>>(emptyList())
@@ -52,7 +52,7 @@ class AssignmentViewModel @Inject constructor(
                 _loading.value = true
                 _error.value = null
                 
-                val users = repo.getAssignableUsers()
+                val users = assignmentRepo.getAssignableUsers()
                 _users.value = users
                 
             } catch (e: Exception) {
@@ -71,7 +71,7 @@ class AssignmentViewModel @Inject constructor(
             try {
                 _loading.value = true
                 _error.value = null
-                val sectors = repo.getAssignmentSectors()
+                val sectors = assignmentRepo.getAssignmentSectors()
                 _sectors.value = sectors
             } catch (e: Exception) {
                 _error.value = "Error cargando sectores: ${e.message}"
@@ -90,7 +90,7 @@ class AssignmentViewModel @Inject constructor(
                 _loading.value = true
                 _error.value = null
                 
-                val summaryList = repo.getAssignmentSummary()
+                val summaryList = assignmentRepo.getAssignmentSummary()
                 _summary.value = summaryList
                 
             } catch (e: Exception) {
@@ -111,7 +111,7 @@ class AssignmentViewModel @Inject constructor(
                 _isAssigning.value = true
                 _error.value = null
 
-                val response = repo.assignUserToSectors(userId, sectors)
+                val response = assignmentRepo.assignUserToSectors(userId, sectors)
                 // Extraer count si viene dentro de data { count: N }
                 var count: Int? = null
                 response.data?.let { d ->
@@ -164,7 +164,7 @@ class AssignmentViewModel @Inject constructor(
                 _loading.value = true
                 _error.value = null
                 
-                val stores = repo.getUserAssignedStores(userId)
+                val stores = assignmentRepo.getUserAssignedStores(userId)
                 // TODO: Manejar resultado
                 
             } catch (e: Exception) {

@@ -1,4 +1,4 @@
-package mx.checklist.ui.vm
+package mx.checklist.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,13 +7,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
-import mx.checklist.data.Repo
+import mx.checklist.data.repository.AdminRepository
 import mx.checklist.data.api.dto.*
 import javax.inject.Inject
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(
-    private val repo: Repo
+    private val adminRepo: AdminRepository
 ) : ViewModel() {
     fun createSection(checklistId: Long, name: String = "Nueva sección", percentage: Double = 0.0, orderIndex: Int? = null, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
@@ -58,7 +58,7 @@ class AdminViewModel @Inject constructor(
                 println("[AdminViewModel.CreateSection] Enviando request: $nuevaSeccion")
 
                 try {
-                    repo.createSection(checklistId, nuevaSeccion)
+                    adminRepo.createSection(checklistId, nuevaSeccion)
                     println("[AdminViewModel.CreateSection] ✅ Sección creada exitosamente")
                     loadTemplate(checklistId)
                     // NO llamar onSuccess aquí - solo establecer el mensaje de éxito
@@ -88,7 +88,7 @@ class AdminViewModel @Inject constructor(
                     percentage = percentage ?: 0.0,
                     orderIndex = orderIndex ?: 0
                 )
-                repo.updateSection(sectionId, seccionActualizada)
+                adminRepo.updateSection(sectionId, seccionActualizada)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     loadTemplate(templateId) // Recargar template para actualizar UI
@@ -103,7 +103,7 @@ class AdminViewModel @Inject constructor(
     fun deleteSection(sectionId: Long, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Eliminando sección...") {
-                repo.deleteSection(sectionId)
+                adminRepo.deleteSection(sectionId)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     // Reducir recargas: solo recargar una vez con delay
@@ -120,7 +120,7 @@ class AdminViewModel @Inject constructor(
     fun reorderSections(checklistId: Long, sectionIds: List<Long>, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Reordenando secciones...") {
-                repo.reorderSections(checklistId, sectionIds)
+                adminRepo.reorderSections(checklistId, sectionIds)
                 // Reducir recargas: solo recargar una vez con delay
                 kotlinx.coroutines.delay(300)
                 loadTemplate(checklistId)
@@ -135,7 +135,7 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             safe("Distribuyendo porcentajes...") {
                 // Usar el endpoint de distribución automática del backend
-                repo.distributeSectionPercentages(checklistId)
+                adminRepo.distributeSectionPercentages(checklistId)
                 // Reducir recargas: solo recargar una vez con delay
                 kotlinx.coroutines.delay(300)
                 loadTemplate(checklistId)
@@ -153,7 +153,7 @@ class AdminViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             safe("Actualizando porcentajes...") {
-                repo.updateSectionPercentages(checklistId, sectionPercentages)
+                adminRepo.updateSectionPercentages(checklistId, sectionPercentages)
                 loadTemplate(checklistId) // Recargar template para actualizar UI
                 onSuccess?.invoke()
                 _operationSuccess.value = "Porcentajes actualizados exitosamente"
@@ -167,7 +167,7 @@ class AdminViewModel @Inject constructor(
     fun getSectionItems(sectionId: Long, onSuccess: ((List<ItemTemplateDto>) -> Unit)? = null) {
         viewModelScope.launch {
             safe("Cargando items...") {
-                val items = repo.getSectionItems(sectionId)
+                val items = adminRepo.getSectionItems(sectionId)
                 onSuccess?.invoke(items)
             }
         }
@@ -217,7 +217,7 @@ class AdminViewModel @Inject constructor(
                 println("  - config: $config")
 
                 try {
-                    repo.createSectionItem(sectionId, nuevoItem)
+                    adminRepo.createSectionItem(sectionId, nuevoItem)
                     println("[AdminViewModel.CreateSectionItem] ✅ Item creado exitosamente")
 
                     // Recargar template para actualizar UI
@@ -269,7 +269,7 @@ class AdminViewModel @Inject constructor(
                 println("  - subcategory: '$subcategory'")
 
                 try {
-                    repo.updateSectionItem(itemId, itemActualizado)
+                    adminRepo.updateSectionItem(itemId, itemActualizado)
                     println("[AdminViewModel.UpdateSectionItem] ✅ Item actualizado exitosamente")
 
                     // Recargar template para actualizar UI
@@ -292,7 +292,7 @@ class AdminViewModel @Inject constructor(
     fun deleteSectionItem(sectionId: Long, itemId: Long, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Eliminando ítem...") {
-                repo.deleteSectionItem(sectionId, itemId)
+                adminRepo.deleteSectionItem(sectionId, itemId)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     loadTemplate(templateId) // Recargar template para actualizar UI
@@ -307,7 +307,7 @@ class AdminViewModel @Inject constructor(
     fun reorderItems(sectionId: Long, itemIds: List<Long>, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Reordenando ítems...") {
-                repo.reorderItems(sectionId, itemIds)
+                adminRepo.reorderItems(sectionId, itemIds)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     loadTemplate(templateId) // Recargar template para actualizar UI
@@ -322,7 +322,7 @@ class AdminViewModel @Inject constructor(
     fun distributeItemPercentages(sectionId: Long, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Distribuyendo porcentajes de ítems...") {
-                repo.distributeItemPercentages(sectionId)
+                adminRepo.distributeItemPercentages(sectionId)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     loadTemplate(templateId) // Recargar template para actualizar UI
@@ -341,7 +341,7 @@ class AdminViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             safe("Actualizando porcentajes de ítems...") {
-                repo.updateItemPercentages(sectionId, itemPercentages)
+                adminRepo.updateItemPercentages(sectionId, itemPercentages)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     loadTemplate(templateId) // Recargar template para actualizar UI
@@ -356,7 +356,7 @@ class AdminViewModel @Inject constructor(
     fun moveItemToSection(itemId: Long, targetSectionId: Long, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe("Moviendo ítem a otra sección...") {
-                repo.moveItemToSection(itemId, targetSectionId)
+                adminRepo.moveItemToSection(itemId, targetSectionId)
                 val templateId = _currentTemplate.value?.id
                 if (templateId != null) {
                     loadTemplate(templateId) // Recargar template para actualizar UI
@@ -400,7 +400,7 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             safe("Cargando templates...") {
                 Log.d("AdminViewModel", "Loading admin templates...")
-                val response = repo.adminGetTemplatesPaginated(page = 1, limit = limit)
+                val response = adminRepo.getTemplatesPaginated(page = 1, limit = limit)
                 Log.d("AdminViewModel", "Loaded ${response.data.size} admin templates")
                 _templates.value = response.data
                 _templatePagination.value = PaginationInfo(
@@ -422,7 +422,7 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             _loadingMoreTemplates.value = true
             try {
-                val response = repo.adminGetTemplatesPaginated(
+                val response = adminRepo.getTemplatesPaginated(
                     page = currentPagination.page + 1,
                     limit = currentPagination.limit
                 )
@@ -449,7 +449,7 @@ class AdminViewModel @Inject constructor(
     fun loadTemplate(templateId: Long) {
         viewModelScope.launch {
             safe("Cargando template...") {
-                val template = repo.adminGetTemplate(templateId)
+                val template = adminRepo.getTemplate(templateId)
                 android.util.Log.d("AdminViewModel", "Template cargado: $template")
                 _currentTemplate.value = template
             }
@@ -469,7 +469,7 @@ class AdminViewModel @Inject constructor(
                     scope = scope, //  Enviar scope en español
                     items = items
                 )
-                val result = repo.adminCreateTemplate(request)
+                val result = adminRepo.createTemplate(request)
 
                 //  WORKAROUND: Crear automáticamente una sección "Items" para mantener compatibilidad con backend
                 // El usuario no la verá, pero es necesaria para que el backend acepte los items
@@ -479,7 +479,7 @@ class AdminViewModel @Inject constructor(
                         percentage = 100.0,
                         orderIndex = 1
                     )
-                    repo.createSection(result.id, dummySection)
+                    adminRepo.createSection(result.id, dummySection)
                     Log.d("AdminViewModel", "✅ Sección dummy 'Items' creada automáticamente para template ${result.id}")
                 } catch (e: Exception) {
                     Log.e("AdminViewModel", "⚠️ No se pudo crear sección dummy: ${e.message}")
@@ -489,7 +489,7 @@ class AdminViewModel @Inject constructor(
                 _operationSuccess.value = "Template '${result.name}' creado exitosamente"
 
                 // Recargar el template completo desde el backend para obtener la sección creada
-                val fullTemplate = repo.adminGetTemplate(result.id)
+                val fullTemplate = adminRepo.getTemplate(result.id)
                 _currentTemplate.value = fullTemplate
 
                 onSuccess(result.id)
@@ -508,10 +508,10 @@ class AdminViewModel @Inject constructor(
                     name = name
                 )
                 // Actualizar en el backend
-                repo.adminUpdateTemplate(templateId, request)
+                adminRepo.updateTemplate(templateId, request)
                 
                 // Recargar el template desde el backend para obtener datos actualizados
-                _currentTemplate.value = repo.adminGetTemplate(templateId)
+                _currentTemplate.value = adminRepo.getTemplate(templateId)
                 _operationSuccess.value = "Template actualizado exitosamente"
                 // NO llamar loadTemplates() para evitar navegación no deseada
                 onSuccess()
@@ -528,10 +528,10 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             safe("Actualizando estado del template...") {
                 // ✅ CORREGIDO: Ahora guarda en el backend usando el endpoint correcto
-                val result = repo.adminUpdateTemplateStatus(templateId, isActive)
+                val result = adminRepo.updateTemplateStatus(templateId, isActive)
 
                 // Actualizar el template localmente con el resultado del backend
-                _currentTemplate.value = repo.adminGetTemplate(templateId)
+                _currentTemplate.value = adminRepo.getTemplate(templateId)
 
                 _operationSuccess.value = result.message
                 onSuccess()
@@ -542,7 +542,7 @@ class AdminViewModel @Inject constructor(
     fun deleteTemplate(templateId: Long, onSuccess: () -> Unit) {
         viewModelScope.launch {
             safe("Eliminando template...") {
-                val result = repo.adminDeleteTemplate(templateId)
+                val result = adminRepo.deleteTemplate(templateId)
                 if (result.success) {
                     _operationSuccess.value = "Template eliminado exitosamente"
                     // Solo cargar templates UNA vez después de eliminar
@@ -597,7 +597,7 @@ class AdminViewModel @Inject constructor(
                 )
 
                 Log.d("AdminViewModel", "Creando item con sectionId=$firstSectionId: $request")
-                repo.adminCreateItem(templateId, request)
+                adminRepo.createItem(templateId, request)
                 _operationSuccess.value = "Item '$title' creado exitosamente"
                 loadTemplate(templateId) // Refrescar template actual
                 onSuccess()
@@ -631,7 +631,7 @@ class AdminViewModel @Inject constructor(
                     expectedType = expectedType,
                     config = normalizedConfig // ✅ Usar config normalizado
                 )
-                repo.adminUpdateItem(templateId, itemId, request)
+                adminRepo.updateItem(templateId, itemId, request)
                 _operationSuccess.value = "Item actualizado exitosamente"
                 loadTemplate(templateId) // Refrescar template actual
                 onSuccess()
@@ -642,7 +642,7 @@ class AdminViewModel @Inject constructor(
     fun deleteItem(templateId: Long, itemId: Long, onSuccess: () -> Unit) {
         viewModelScope.launch {
             safe("Eliminando item...") {
-                val result = repo.adminDeleteItem(templateId, itemId)
+                val result = adminRepo.deleteItem(templateId, itemId)
                 if (result.success) {
                     _operationSuccess.value = "Item eliminado exitosamente"
                     loadTemplate(templateId) // Refrescar template actual
@@ -657,7 +657,7 @@ class AdminViewModel @Inject constructor(
     fun forceDeleteRun(runId: Long, onSuccess: () -> Unit) {
         viewModelScope.launch {
             safe("Eliminando corrida enviada...") {
-                val result = repo.adminForceDeleteRun(runId)
+                val result = adminRepo.forceDeleteRun(runId)
                 if (result.success) {
                     _operationSuccess.value = result.message
                     onSuccess()

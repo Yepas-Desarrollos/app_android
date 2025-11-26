@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import mx.checklist.data.api.dto.ItemTemplateDto
 import mx.checklist.data.api.dto.SectionTemplateDto
-import mx.checklist.ui.vm.AdminViewModel
+import mx.checklist.viewmodel.AdminViewModel
 import kotlin.math.roundToInt
 
 /**

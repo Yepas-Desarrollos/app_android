@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import mx.checklist.ui.vm.RunsViewModel
+import mx.checklist.viewmodel.RunsViewModel
 import mx.checklist.ui.components.admin.AdminAccessButton
 import mx.checklist.ui.components.admin.AdminBadge
 

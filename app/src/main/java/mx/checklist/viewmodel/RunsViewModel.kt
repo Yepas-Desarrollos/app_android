@@ -1,4 +1,4 @@
-package mx.checklist.ui.vm
+package mx.checklist.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,13 +6,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import mx.checklist.data.Repo
+import mx.checklist.data.repository.RunRepository
+import mx.checklist.data.repository.ChecklistRepository
 import mx.checklist.data.api.dto.*
 import javax.inject.Inject
 
 @HiltViewModel
 class RunsViewModel @Inject constructor(
-    private val repo: Repo
+    private val runRepo: RunRepository,
+    private val checklistRepo: ChecklistRepository
 ) : ViewModel() {
 
     private val _loading = MutableStateFlow(false)
@@ -98,28 +100,28 @@ class RunsViewModel @Inject constructor(
     }
 
     fun getStores(): StateFlow<List<StoreDto>> {
-        if (_stores.value.isEmpty()) viewModelScope.launch { safe { _stores.value = repo.stores() } }
+        if (_stores.value.isEmpty()) viewModelScope.launch { safe { _stores.value = checklistRepo.getStores() } }
         return _stores
     }
 
     fun getTemplates(): StateFlow<List<TemplateDto>> {
-        if (_templates.value.isEmpty()) viewModelScope.launch { safe { _templates.value = repo.templates() } }
+        if (_templates.value.isEmpty()) viewModelScope.launch { safe { _templates.value = checklistRepo.getTemplates() } }
         return _templates
     }
 
     fun loadPendingRuns(limit: Int? = 20, all: Boolean? = false, storeCode: String? = null) {
-        viewModelScope.launch { safe { _pendingRuns.value = repo.pendingRuns(limit, all, storeCode) } }
+        viewModelScope.launch { safe { _pendingRuns.value = runRepo.getPendingRuns(limit ?: 20) } }
     }
 
     fun loadHistoryRuns(limit: Int? = 20, storeCode: String? = null) {
-        viewModelScope.launch { safe { _historyRuns.value = repo.historyRuns(limit, storeCode) } }
+        viewModelScope.launch { safe { _historyRuns.value = runRepo.getHistoryRuns(limit ?: 20) } }
     }
 
     // NUEVO: Cargar historial con paginación (primera página)
     fun loadHistoryRunsPaginated(limit: Int = 50) {
         viewModelScope.launch {
             safe {
-                val response = repo.historyRunsPaginated(page = 1, limit = limit)
+                val response = runRepo.getHistoryRunsPaginated(page = 1, limit = limit)
                 _historyRuns.value = response.data
                 _historyPagination.value = PaginationInfo(
                     page = response.pagination.page,
@@ -144,7 +146,7 @@ class RunsViewModel @Inject constructor(
         viewModelScope.launch {
             _loadingMoreHistory.value = true
             try {
-                val response = repo.historyRunsPaginated(
+                val response = runRepo.getHistoryRunsPaginated(
                     page = currentPagination.page + 1,
                     limit = currentPagination.limit
                 )
@@ -174,7 +176,7 @@ class RunsViewModel @Inject constructor(
         if (_runItemsLoadedFor.value == runId && _runItems.value.isNotEmpty()) return
         viewModelScope.launch {
             safe {
-                _runItems.value = repo.runItems(runId)
+                _runItems.value = runRepo.getRunItems(runId)
                 _runItemsLoadedFor.value = runId
                 // Opcional: limpiar borradores de items que ya no existen en este run
                 val currentIds = _runItems.value.map { it.id }.toSet()
@@ -184,15 +186,15 @@ class RunsViewModel @Inject constructor(
     }
 
     fun loadRunInfo(runId: Long) {
-        viewModelScope.launch { safe { _runInfo.value = repo.runInfo(runId) } }
+        viewModelScope.launch { safe { _runInfo.value = runRepo.getRunInfo(runId) } }
     }
 
     fun createRun(storeCode: String, templateId: Long, onCreated: (Long) -> Unit) {
         viewModelScope.launch {
             safe {
-                val res = repo.createRun(storeCode, templateId)
+                val res = runRepo.createRun(storeCode, templateId)
                 onCreated(res.id)
-                _pendingRuns.value = repo.pendingRuns()
+                _pendingRuns.value = runRepo.getPendingRuns()
             }
         }
     }
@@ -267,7 +269,7 @@ class RunsViewModel @Inject constructor(
             _respondingItems.value = _respondingItems.value + itemId
 
             try {
-                val updatedItemDto = repo.respond(itemId, status, text, number, barcode)
+                val updatedItemDto = runRepo.respond(itemId, status, text, number, barcode)
 
                 _runItems.value = _runItems.value.map { currentItemInList ->
                     if (currentItemInList.id == updatedItemDto.id) {
@@ -349,11 +351,11 @@ class RunsViewModel @Inject constructor(
 
             while (retryCount < maxRetries && !uploadSuccess) {
                 try {
-                    repo.uploadAttachments(itemId, listOf(file))
+                    runRepo.uploadAttachments(itemId, listOf(file))
                     uploadSuccess = true
 
                     // 3. Al tener éxito, refrescar la lista desde el servidor
-                    val newAttachments = repo.listAttachments(itemId)
+                    val newAttachments = runRepo.listAttachments(itemId)
 
                     // ✅ MEJORADO: Preservar el localUri en el attachment más reciente para transición suave
                     val updatedAttachments = newAttachments.map { serverAtt ->
@@ -385,6 +387,25 @@ class RunsViewModel @Inject constructor(
 
                 } catch (e: Exception) {
                     retryCount++
+                    
+                    // Detectar específicamente 401 (sesión expirada)
+                    val is401 = e is retrofit2.HttpException && e.code() == 401
+                    
+                    if (is401) {
+                        // NO reintentar si es 401, la sesión ya expiró
+                        _runItems.value = _runItems.value.map { runItem ->
+                            if (runItem.id == itemId) {
+                                // Mantener la imagen temporal para que el usuario la vea
+                                runItem.copy(attachments = runItem.attachments.orEmpty())
+                            } else {
+                                runItem
+                            }
+                        }
+                        
+                        _evidenceError.value = "Sesión expirada. La imagen se guardó localmente. Por favor inicia sesión nuevamente para subirla."
+                        break // Salir del loop de reintentos
+                    }
+                    
                     if (retryCount < maxRetries) {
                         // Esperar antes del siguiente intento (backoff exponencial)
                         kotlinx.coroutines.delay(2000L * retryCount)
@@ -420,8 +441,8 @@ class RunsViewModel @Inject constructor(
     fun deleteAttachment(itemId: Long, attachmentId: Int) {
         viewModelScope.launch {
             safe {
-                repo.deleteAttachment(itemId, attachmentId)
-                val newAttachments = repo.listAttachments(itemId)
+                runRepo.deleteAttachment(itemId, attachmentId)
+                val newAttachments = runRepo.listAttachments(itemId)
                 _runItems.value = _runItems.value.map { runItem ->
                     if (runItem.id == itemId) {
                         runItem.copy(attachments = newAttachments)
@@ -436,10 +457,10 @@ class RunsViewModel @Inject constructor(
     fun submit(runId: Long, onSubmitted: () -> Unit) {
         viewModelScope.launch {
             safe {
-                repo.submit(runId)
+                runRepo.submitRun(runId)
                 onSubmitted()
-                _pendingRuns.value = repo.pendingRuns()
-                _historyRuns.value = repo.historyRuns()
+                _pendingRuns.value = runRepo.getPendingRuns()
+                _historyRuns.value = runRepo.getHistoryRuns()
             }
         }
     }
@@ -447,9 +468,9 @@ class RunsViewModel @Inject constructor(
     fun deleteRun(runId: Long, onOk: (() -> Unit)? = null) {
         viewModelScope.launch {
             safe {
-                repo.deleteRun(runId)
-                _pendingRuns.value = repo.pendingRuns()
-                _historyRuns.value = repo.historyRuns()
+                runRepo.deleteRun(runId)
+                _pendingRuns.value = runRepo.getPendingRuns()
+                _historyRuns.value = runRepo.getHistoryRuns()
                 onOk?.invoke()
             }
         }
