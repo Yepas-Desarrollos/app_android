@@ -52,6 +52,8 @@ fun HomeScreen(
     onCorrections: (() -> Unit)? = null,     // SUPERVISOR
     onReviews: (() -> Unit)? = null,         // AUDITOR
     onTeamCorrections: (() -> Unit)? = null, // MGR_OPS
+    supervisorPendingCount: Int = 0,          // Contador para supervisor
+    auditorPendingCount: Int = 0,             // Contador para auditor
     onLogout: () -> Unit = {}
 ) {
     // Obtener el estado de autenticación para mostrar el mensaje de bienvenida
@@ -150,7 +152,9 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.size(10.dp))
                         Text(
-                            text = "Correcciones Pendientes",
+                            text = if (supervisorPendingCount > 0) 
+                                "Correcciones Pendientes ($supervisorPendingCount)" 
+                            else "Correcciones Pendientes",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF90CAF9)
@@ -189,7 +193,9 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.size(10.dp))
                         Text(
-                            text = "Validar Correcciones",
+                            text = if (auditorPendingCount > 0) 
+                                "Validar Correcciones ($auditorPendingCount)" 
+                            else "Validar Correcciones",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF90CAF9)

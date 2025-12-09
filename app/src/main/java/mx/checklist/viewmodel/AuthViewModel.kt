@@ -78,9 +78,28 @@ class AuthViewModel @Inject constructor(
                     Log.d("AuthViewModel", "🚪 No hay token guardado - requiere login")
                 }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "❌ Token inválido o expirado: ${e.message}")
-                // Token inválido, limpiar datos guardados
-                logout(onComplete = {})
+                // Solo hacer logout si es un error de autenticación (401/403)
+                // No hacer logout por timeout o errores de red temporales
+                val isAuthError = when (e) {
+                    is retrofit2.HttpException -> e.code() in listOf(401, 403)
+                    else -> false
+                }
+                
+                if (isAuthError) {
+                    Log.e("AuthViewModel", "❌ Token inválido o expirado: ${e.message}")
+                    logout(onComplete = {})
+                } else {
+                    // Error de red/timeout - mantener sesión, usuario puede reintentar
+                    Log.w("AuthViewModel", "⚠️ Error de red validando token (manteniendo sesión): ${e.message}")
+                    // Restaurar estado autenticado desde AuthState guardado
+                    if (AuthState.token != null && AuthState.roleCode != null) {
+                        val authenticated = Authenticated(
+                            token = AuthState.token!!,
+                            roleCode = AuthState.roleCode!!
+                        )
+                        _state.value = LoginState(authenticated = authenticated)
+                    }
+                }
             }
         }
     }

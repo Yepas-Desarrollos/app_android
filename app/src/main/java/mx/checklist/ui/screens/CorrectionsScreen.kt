@@ -36,6 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.content.FileProvider
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import mx.checklist.util.formatRelativeTime
 
 /**
  * Pantalla de Correcciones para SUPERVISORES
@@ -509,7 +510,7 @@ private fun PendingReviewCard(
                     )
                 }
                 Text(
-                    text = formatDate(review.createdAt),
+                    text = formatRelativeTime(review.createdAt),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFB0BEC5)
                 )
@@ -1085,7 +1086,7 @@ private fun MyCorrectionCard(
             ) {
                 // Fecha
                 Text(
-                    text = formatCorrectionDate(correction.correctedAt),
+                    text = formatRelativeTime(correction.correctedAt),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFB0BEC5)
                 )

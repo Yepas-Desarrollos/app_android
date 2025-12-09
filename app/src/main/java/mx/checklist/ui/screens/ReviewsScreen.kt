@@ -32,6 +32,7 @@ import mx.checklist.data.api.dto.ReviewDetailDto
 import mx.checklist.viewmodel.AuditReviewViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import mx.checklist.util.formatRelativeTime
 
 /**
  * Pantalla de Revisiones para AUDITORES
@@ -545,7 +546,7 @@ private fun CorrectedReviewCard(
 
             // Fecha de corrección
             Text(
-                text = "Corregido: ${formatReviewDate(review.correctedAt)}",
+                text = "Corregido: ${formatRelativeTime(review.correctedAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFFB0BEC5)
             )

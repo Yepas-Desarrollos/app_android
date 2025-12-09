@@ -92,7 +92,7 @@ fun AppNavHost(
             LoginScreen(
                 vm = authVM,
                 onLoggedIn = {
-                    nav.navigate(NavRoutes.HOME) { popUpTo(0) }
+                    nav.navigate(NavRoutes.HOME) { popUpTo(0); launchSingleTop = true }
                 }
             )
         }
@@ -104,6 +104,21 @@ fun AppNavHost(
             val isMgrPrev = currentRoleCode == "MGR_PREV"  // Manager Prevención también puede validar
             val isMgrOps = currentRoleCode == "MGR_OPS"
             
+            // Cargar conteos al iniciar Home (para badges)
+            // Usa currentRoleCode como key para re-ejecutar cuando el rol esté disponible
+            LaunchedEffect(currentRoleCode) {
+                if (isSupervisor) {
+                    auditReviewVM.loadPendingReviews()
+                }
+                if (isAuditor || isMgrPrev) {
+                    auditReviewVM.loadCorrectedReviews()
+                }
+            }
+            
+            // Colectar conteos para badges
+            val pendingReviews by auditReviewVM.pendingReviews.collectAsStateWithLifecycle()
+            val correctedReviews by auditReviewVM.correctedReviews.collectAsStateWithLifecycle()
+            
             HomeScreen(
                 vm = runsVM,
                 authVM = authVM,
@@ -114,6 +129,8 @@ fun AppNavHost(
                 onCorrections = if (isSupervisor) {{ nav.navigate(NavRoutes.CORRECTIONS) }} else null,
                 onReviews = if (isAuditor || isMgrPrev) {{ nav.navigate(NavRoutes.REVIEWS) }} else null, // MGR_PREV también puede validar
                 onTeamCorrections = if (isMgrOps) {{ nav.navigate(NavRoutes.TEAM_CORRECTIONS) }} else null,
+                supervisorPendingCount = pendingReviews.size,
+                auditorPendingCount = correctedReviews.size,
                 onLogout = { nav.navigate(NavRoutes.LOGIN) { popUpTo(0) } }
             )
         }
@@ -205,7 +222,7 @@ fun AppNavHost(
                 runId = runId,
                 storeCode = storeCode,
                 vm = runsVM,
-                onSubmit = { nav.navigate(NavRoutes.HOME) { popUpTo(0) } }
+                onSubmit = { nav.navigate(NavRoutes.HOME) { popUpTo(0); launchSingleTop = true } }
             )
         }
 

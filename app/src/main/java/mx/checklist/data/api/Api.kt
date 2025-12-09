@@ -269,19 +269,19 @@ interface Api {
     ): ValidateCorrectionResponse
 
     // Crear corrección
-    @POST("audit-reviews/corrections")
+    @POST("audit-corrections")
     suspend fun createCorrection(@Body request: CreateCorrectionRequest): CreateCorrectionResponse
 
     // Subir fotos de evidencia a una corrección
     @Multipart
-    @POST("audit-reviews/corrections/{correctionId}/attachments")
+    @POST("audit-corrections/{correctionId}/attachments")
     suspend fun uploadCorrectionAttachments(
         @Path("correctionId") correctionId: Long,
         @Part files: List<MultipartBody.Part>
     ): List<CorrectionAttachmentDto>
 
     // Listar correcciones del equipo (MGR_OPS)
-    @GET("audit-reviews/team-corrections")
+    @GET("audit-corrections/my-team")
     suspend fun getTeamCorrections(
         @Query("limit") limit: Int = 20,
         @Query("page") page: Int = 1,
