@@ -39,6 +39,10 @@ import mx.checklist.ui.screens.ChecklistStructureScreen
 import mx.checklist.ui.screens.SectionItemsScreen
 import mx.checklist.ui.navigation.NavRoutes
 import mx.checklist.config.AppConfig.ENABLE_PAGINATION_OPTIMIZATIONS
+import mx.checklist.viewmodel.AuditReviewViewModel
+import mx.checklist.ui.screens.CorrectionsScreen
+import mx.checklist.ui.screens.ReviewsScreen
+import mx.checklist.ui.screens.TeamCorrectionsScreen
 
 @Composable
 fun AppNavHost(
@@ -47,6 +51,7 @@ fun AppNavHost(
     adminVM: AdminViewModel,
     assignmentVM: AssignmentViewModel,
     checklistVM: ChecklistStructureViewModel,
+    auditReviewVM: AuditReviewViewModel,
     modifier: Modifier = Modifier
 ) {
     val nav = rememberNavController()
@@ -93,12 +98,22 @@ fun AppNavHost(
         }
 
         composable(NavRoutes.HOME) {
+            // Determinar callbacks basados en rol
+            val isSupervisor = currentRoleCode == "SUPERVISOR"
+            val isAuditor = currentRoleCode == "AUDITOR"
+            val isMgrPrev = currentRoleCode == "MGR_PREV"  // Manager Prevención también puede validar
+            val isMgrOps = currentRoleCode == "MGR_OPS"
+            
             HomeScreen(
                 vm = runsVM,
                 authVM = authVM,
                 onNuevaCorrida = { nav.navigate(NavRoutes.STORES) },
                 onOpenHistory = { nav.navigate(NavRoutes.HISTORY) },
                 onAdminAccess = if (isAdmin) {{ nav.navigate(NavRoutes.ADMIN_TEMPLATES) }} else null,
+                // Callbacks para Audit Review segun rol
+                onCorrections = if (isSupervisor) {{ nav.navigate(NavRoutes.CORRECTIONS) }} else null,
+                onReviews = if (isAuditor || isMgrPrev) {{ nav.navigate(NavRoutes.REVIEWS) }} else null, // MGR_PREV también puede validar
+                onTeamCorrections = if (isMgrOps) {{ nav.navigate(NavRoutes.TEAM_CORRECTIONS) }} else null,
                 onLogout = { nav.navigate(NavRoutes.LOGIN) { popUpTo(0) } }
             )
         }
@@ -108,6 +123,32 @@ fun AppNavHost(
                 runsVM = runsVM,
                 adminVM = adminVM,
                 onOpenRun = { runId, _, _ -> nav.navigate(NavRoutes.run(runId)) }
+            )
+        }
+
+                // === AUDIT REVIEW ROUTES ===
+        
+        // Correcciones pendientes (SUPERVISOR)
+        composable(NavRoutes.CORRECTIONS) {
+            CorrectionsScreen(
+                viewModel = auditReviewVM,
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // Revisiones para validar (AUDITOR)
+        composable(NavRoutes.REVIEWS) {
+            ReviewsScreen(
+                viewModel = auditReviewVM,
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // Correcciones del equipo (MGR_OPS)
+        composable(NavRoutes.TEAM_CORRECTIONS) {
+            TeamCorrectionsScreen(
+                viewModel = auditReviewVM,
+                onBack = { nav.popBackStack() }
             )
         }
 

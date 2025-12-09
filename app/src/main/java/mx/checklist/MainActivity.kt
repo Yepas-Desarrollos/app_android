@@ -24,6 +24,7 @@ import mx.checklist.viewmodel.RunsViewModel
 import mx.checklist.viewmodel.AdminViewModel
 import mx.checklist.viewmodel.AssignmentViewModel
 import mx.checklist.viewmodel.ChecklistStructureViewModel
+import mx.checklist.viewmodel.AuditReviewViewModel
 import java.io.File
 import javax.inject.Inject
 
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
                 val adminVM: AdminViewModel = hiltViewModel<AdminViewModel>()
                 val assignmentVM: AssignmentViewModel = hiltViewModel<AssignmentViewModel>()
                 val checklistVM: ChecklistStructureViewModel = hiltViewModel<ChecklistStructureViewModel>()
+                val auditReviewVM: AuditReviewViewModel = hiltViewModel<AuditReviewViewModel>()
 
                 // Inicializar AuthState si hay token guardado
                 LaunchedEffect(Unit) {
@@ -93,7 +95,8 @@ class MainActivity : ComponentActivity() {
                         runsVM = runsVM,
                         adminVM = adminVM,
                         assignmentVM = assignmentVM,
-                        checklistVM = checklistVM
+                        checklistVM = checklistVM,
+                        auditReviewVM = auditReviewVM
                     )
                 }
             }

@@ -2,6 +2,7 @@ package mx.checklist.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,9 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -45,6 +49,9 @@ fun HomeScreen(
     onNuevaCorrida: () -> Unit,
     onOpenHistory: () -> Unit,
     onAdminAccess: (() -> Unit)? = null,
+    onCorrections: (() -> Unit)? = null,     // SUPERVISOR
+    onReviews: (() -> Unit)? = null,         // AUDITOR
+    onTeamCorrections: (() -> Unit)? = null, // MGR_OPS
     onLogout: () -> Unit = {}
 ) {
     // Obtener el estado de autenticación para mostrar el mensaje de bienvenida
@@ -62,74 +69,34 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize(),
         color = Color.Black // Fondo negro sólido
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "CHECKLIST YEPAS",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF90CAF9),
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Sistema de Gestión",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFFB0BEC5),
-                textAlign = TextAlign.Center
-            )
-            // Mostrar mensaje de bienvenida si existe
-            if (authState?.welcomeMessage != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF232A36),
-                        contentColor = Color(0xFF90CAF9)
-                    ),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 8.dp
-                    ),
-                    border = BorderStroke(1.5.dp, Color(0xFF90CAF9).copy(alpha = 0.22f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 10.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person, // Icono de saludo
-                            contentDescription = "Bienvenida",
-                            tint = Color(0xFF90CAF9),
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.size(10.dp))
-                        Text(
-                            text = authState.welcomeMessage,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFF90CAF9),
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(28.dp))
-            Row(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.CenterHorizontally),
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "CHECKLIST YEPAS",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF90CAF9),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Sistema de Gestión",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFFB0BEC5),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(28.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
                 HomeCardPremium(
                     title = "Ejecutar\nChecklist",
                     icon = Icons.Default.PlayArrow,
@@ -150,7 +117,127 @@ fun HomeScreen(
                 thickness = 1.5.dp,
                 color = Color(0xFF90CAF9).copy(alpha = 0.22f)
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            
+            // === AUDIT REVIEW BUTTONS ===
+            
+            // Botón Correcciones (SUPERVISOR)
+            onCorrections?.let { callback ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    onClick = callback,
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF232A36)
+                    ),
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    border = BorderStroke(1.5.dp, Color(0xFF90CAF9).copy(alpha = 0.22f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Build,
+                            contentDescription = "Correcciones",
+                            tint = Color(0xFF90CAF9),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Text(
+                            text = "Correcciones Pendientes",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF90CAF9)
+                        )
+                    }
+                }
+            }
+            
+            // Botón Revisiones (AUDITOR)
+            onReviews?.let { callback ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    onClick = callback,
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF232A36)
+                    ),
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    border = BorderStroke(1.5.dp, Color(0xFF90CAF9).copy(alpha = 0.22f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Revisiones",
+                            tint = Color(0xFF90CAF9),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Text(
+                            text = "Validar Correcciones",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF90CAF9)
+                        )
+                    }
+                }
+            }
+            
+            // Botón Correcciones del Equipo (MGR_OPS)
+            onTeamCorrections?.let { callback ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    onClick = callback,
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF232A36)
+                    ),
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    border = BorderStroke(1.5.dp, Color(0xFF90CAF9).copy(alpha = 0.22f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Groups,
+                            contentDescription = "Correcciones del Equipo",
+                            tint = Color(0xFF90CAF9),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Text(
+                            text = "Correcciones del Equipo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF90CAF9)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
             // Botón Administración premium
             onAdminAccess?.let { adminCallback ->
                 Card(
@@ -228,6 +315,46 @@ fun HomeScreen(
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
+            }
+            
+            // Welcome message floating overlay
+            if (authState?.welcomeMessage != null) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 100.dp, start = 24.dp, end = 24.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF232A36),
+                        contentColor = Color(0xFF90CAF9)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                    border = BorderStroke(1.5.dp, Color(0xFF90CAF9).copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Bienvenida",
+                            tint = Color(0xFF90CAF9),
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Text(
+                            text = authState.welcomeMessage,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFF90CAF9),
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }

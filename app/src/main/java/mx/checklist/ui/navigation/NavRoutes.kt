@@ -8,6 +8,11 @@ object NavRoutes {
     const val TEMPLATES = "templates/{storeCode}"
     const val RUN = "run/{runId}"
     
+    // Audit Review routes
+    const val CORRECTIONS = "corrections"           // SUPERVISOR: correcciones pendientes
+    const val REVIEWS = "reviews"                   // AUDITOR: validar correcciones
+    const val TEAM_CORRECTIONS = "team_corrections" // MGR_OPS: ver correcciones del equipo
+    
     // Admin routes
     const val ADMIN_TEMPLATES = "admin/templates"
     const val ADMIN_TEMPLATES_ADMIN = "admin/templates-admin"
